@@ -1,15 +1,19 @@
 export type AuthStackParamList = {
   Login: undefined;
+  Signup: undefined;
   ForgotPassword: undefined;
 };
 
 export type MainTabParamList = {
-  Reports: undefined;
-  Dashboard: undefined;
+  Patients: undefined;
   Profile: undefined;
+  Settings: undefined;
 };
 
-export type ReportsStackParamList = {
-  ReportList: undefined;
-  ReportDetail: { id: string };
+export type PatientsStackParamList = {
+  PatientList: undefined;
+  PatientDetails: { patientId: string };
+  Folder: { folderKey: string };
+  NewNote: { folderKey?: string };
+  NoteDetail: { folderKey: string; noteId: string };
 };

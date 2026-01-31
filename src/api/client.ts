@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { storage } from '../utils/storage';
+import { firebaseAuth } from '../config/firebase';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -11,9 +11,10 @@ const apiClient = axios.create({
   },
 });
 
-apiClient.interceptors.request.use((config) => {
-  const token = storage.getString('accessToken');
-  if (token) {
+apiClient.interceptors.request.use(async (config) => {
+  const user = firebaseAuth.currentUser;
+  if (user) {
+    const token = await user.getIdToken();
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -23,10 +24,17 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
-      // TODO: Token refresh logic
+      // Token expired - force refresh and retry once
+      const user = firebaseAuth.currentUser;
+      if (user && error.config && !error.config._retry) {
+        error.config._retry = true;
+        const token = await user.getIdToken(true);
+        error.config.headers.Authorization = `Bearer ${token}`;
+        return apiClient(error.config);
+      }
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 export default apiClient;

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { colors, spacing, typography } from '../../theme';
+import { COLORS, spacing, typography } from '../../theme';
 
 export default function ReportDetailScreen() {
   return (
@@ -13,11 +13,11 @@ export default function ReportDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: COLORS.background,
     padding: spacing.lg,
   },
   title: {
     ...typography.h2,
-    color: colors.text,
+    color: COLORS.textPrimary,
   },
 });
