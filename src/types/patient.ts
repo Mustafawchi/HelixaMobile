@@ -46,3 +46,28 @@ export interface SearchPatientsResponse {
   patients: Patient[];
   count: number;
 }
+
+export interface UpdatePatientRequest {
+  patientId: string;
+  firstName?: string;
+  lastName?: string;
+  dateOfBirth?: string;
+  email?: string;
+  homeAddress?: string;
+}
+
+export interface UpdatePatientResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface CreatePatientRequest {
+  firstName: string;
+  lastName?: string;
+}
+
+export interface CreatePatientResponse {
+  success: boolean;
+  patientId: string;
+  message: string;
+}

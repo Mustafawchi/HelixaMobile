@@ -1,4 +1,4 @@
-import { httpsCallable } from "firebase/functions";
+import { loggedCallable } from "../../utils/networkLogger";
 import { signInWithCustomToken, signOut } from "firebase/auth";
 import { firebaseAuth, functions } from "../../config/firebase";
 import type {
@@ -16,7 +16,7 @@ export const authApi = {
   sendLoginCode: async (
     data: SendLoginCodeRequest,
   ): Promise<SendLoginCodeResponse> => {
-    const sendLoginCode = httpsCallable<
+    const sendLoginCode = loggedCallable<
       SendLoginCodeRequest,
       SendLoginCodeResponse
     >(functions, "sendLoginCode");
@@ -27,7 +27,7 @@ export const authApi = {
   verifyLoginCode: async (
     data: VerifyLoginCodeRequest,
   ): Promise<VerifyLoginCodeResponse> => {
-    const verifyLoginCode = httpsCallable<
+    const verifyLoginCode = loggedCallable<
       VerifyLoginCodeRequest,
       VerifyLoginCodeResponse
     >(functions, "verifyLoginCode");
@@ -42,7 +42,7 @@ export const authApi = {
   sendSignupCode: async (
     data: SendSignupCodeRequest,
   ): Promise<SendSignupCodeResponse> => {
-    const sendSignupCode = httpsCallable<
+    const sendSignupCode = loggedCallable<
       SendSignupCodeRequest,
       SendSignupCodeResponse
     >(functions, "sendSignupCode");
@@ -53,7 +53,7 @@ export const authApi = {
   verifySignupCode: async (
     data: VerifySignupCodeRequest,
   ): Promise<VerifySignupCodeResponse> => {
-    const verifySignupCode = httpsCallable<
+    const verifySignupCode = loggedCallable<
       VerifySignupCodeRequest,
       VerifySignupCodeResponse
     >(functions, "verifySignupCode");

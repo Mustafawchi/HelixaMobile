@@ -34,6 +34,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     marginHorizontal: spacing.lg,
     marginTop: spacing.md,
+    marginBottom: spacing.md,
     height: 44,
     shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: 1 },
