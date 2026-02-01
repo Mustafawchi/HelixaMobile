@@ -196,7 +196,7 @@ export default function MainScreen() {
       <StatusBar style="light" />
       <ScreenHeader
         title="Patients"
-        subtitle={`${patients.length} matters · ${totalNotes} total notes`}
+        subtitle={`${patients.length} patients · ${totalNotes} total notes`}
         actions={[
           { icon: "filter", onPress: () => {} },
           { icon: "add", onPress: () => setShowCreatePopup(true) },
@@ -205,7 +205,7 @@ export default function MainScreen() {
       <SearchBar
         value={search}
         onChangeText={setSearch}
-        placeholder="Search matters..."
+        placeholder="Search patients..."
       />
 
       {isLoading && patients.length === 0 ? (

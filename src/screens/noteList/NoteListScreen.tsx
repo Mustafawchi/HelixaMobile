@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,7 +6,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   FlatList,
+  Alert,
 } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -18,8 +20,24 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { COLORS } from "../../types/colors";
 import { spacing, borderRadius } from "../../theme";
 import { usePatientNotes } from "../../hooks/queries/useNotes";
+import { useUpdateNote } from "../../hooks/mutations/useUpdateNote";
+import { useDeleteNote } from "../../hooks/mutations/useDeleteNote";
+import { useDeleteNotes } from "../../hooks/mutations/useDeleteNotes";
+import { useCreateNote } from "../../hooks/mutations/useCreateNote";
+import SearchBar from "../../components/common/SearchBar";
 import NoteCard from "./components/NoteCard";
+import FilterSortBar from "./components/FilterSortBar";
+import SummaryAction from "./components/SummaryAction";
+import NewNoteButton from "./components/NewNoteButton";
+import SelectionActionBar from "./components/SelectionActionBar";
+import SelectionBottomBar from "./components/SelectionBottomBar";
+import EditNotePopup from "./components/EditNotePopup";
+import PatientDetails from "./components/PatientDetails";
+import GenerateNotesPopup from "./components/GenerateNotesPopup";
+import CreateNotePopup from "./components/CreateNotePopup";
 import type { PatientsStackParamList } from "../../types/navigation";
+import type { Note } from "../../types/note";
+
 type NoteListRoute = RouteProp<PatientsStackParamList, "NoteList">;
 
 export default function NoteListScreen() {
@@ -28,9 +46,20 @@ export default function NoteListScreen() {
     useNavigation<NativeStackNavigationProp<PatientsStackParamList>>();
   const route = useRoute<NoteListRoute>();
   const patientId = route.params?.patientId ?? "";
+  const [search, setSearch] = useState("");
   const routePatientName = route.params?.patientName;
+  const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const [showEditPopup, setShowEditPopup] = useState(false);
+  const [showPatientDetails, setShowPatientDetails] = useState(false);
+  const [showGeneratePopup, setShowGeneratePopup] = useState(false);
 
-  const { data, isLoading, error } = usePatientNotes(patientId);
+  const { data, isLoading, isFetching, isFetchingNextPage, error, refetch } =
+    usePatientNotes(patientId);
+  const updateNote = useUpdateNote();
+  const deleteNote = useDeleteNote();
+  const deleteNotes = useDeleteNotes();
+  const createNote = useCreateNote();
+  const [showCreatePopup, setShowCreatePopup] = useState(false);
 
   const notes = useMemo(() => {
     if (!data?.pages) return [];
@@ -45,8 +74,124 @@ export default function NoteListScreen() {
       .join(" ") ||
     "Patient";
 
+  // Selection mode state
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const handleLongPress = useCallback((note: Note) => {
+    setSelectionMode(true);
+    setSelectedIds(new Set([note.id]));
+  }, []);
+
+  const handleToggleSelect = useCallback((note: Note) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(note.id)) {
+        next.delete(note.id);
+      } else {
+        next.add(note.id);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleCancelSelection = useCallback(() => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    setSelectedIds(new Set(notes.map((n) => n.id)));
+  }, [notes]);
+
+  const handleEditNote = useCallback((note: Note) => {
+    setEditingNote(note);
+    setShowEditPopup(true);
+  }, []);
+
+  const handleEditClose = useCallback(() => {
+    setShowEditPopup(false);
+    setEditingNote(null);
+  }, []);
+
+  const handleEditSave = useCallback(
+    (payload: { noteId: string; title: string }) => {
+      updateNote.mutate(
+        { patientId, noteId: payload.noteId, title: payload.title },
+        { onSettled: handleEditClose },
+      );
+    },
+    [patientId, updateNote, handleEditClose],
+  );
+
+  const handleDeleteNote = useCallback(
+    (note: Note) => {
+      Alert.alert("Delete Note", "Are you sure you want to delete this note?", [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => deleteNote.mutate({ patientId, noteId: note.id }),
+        },
+      ]);
+    },
+    [patientId, deleteNote],
+  );
+
+  const handleBatchDelete = useCallback(() => {
+    const count = selectedIds.size;
+    Alert.alert(
+      "Delete Notes",
+      `Are you sure you want to delete ${count} note${count > 1 ? "s" : ""}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            deleteNotes.mutate(
+              { patientId, noteIds: Array.from(selectedIds) },
+              {
+                onSettled: () => {
+                  setSelectionMode(false);
+                  setSelectedIds(new Set());
+                },
+              },
+            );
+          },
+        },
+      ],
+    );
+  }, [patientId, selectedIds, deleteNotes]);
+
+  const handleNotePress = useCallback(
+    (note: Note) => {
+      navigation.navigate("NoteDetail", {
+        patientId,
+        noteId: note.id,
+        noteTitle: note.title,
+        noteText: note.text,
+        noteType: note.type,
+      });
+    },
+    [patientId, navigation],
+  );
+
+  const handleCreateNote = useCallback(
+    (payload: { title: string; type: string }) => {
+      setShowCreatePopup(false);
+      navigation.navigate("NewNote", {
+        patientId,
+        patientName,
+        consultationType: payload.type,
+        consultationTitle: payload.title,
+      });
+    },
+    [patientId, navigation],
+  );
+
   return (
-    <View style={styles.container}>
+    <GestureHandlerRootView style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
         <View style={styles.headerRow}>
           <View style={styles.leftGroup}>
@@ -57,9 +202,13 @@ export default function NoteListScreen() {
             >
               <Ionicons name="chevron-back" size={20} color={COLORS.white} />
             </TouchableOpacity>
-            <View style={styles.avatar}>
+            <TouchableOpacity
+              style={styles.avatar}
+              activeOpacity={0.8}
+              onPress={() => setShowPatientDetails(true)}
+            >
               <Ionicons name="person" size={20} color={COLORS.white} />
-            </View>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.titleGroup}>
@@ -76,6 +225,24 @@ export default function NoteListScreen() {
       </View>
 
       <View style={styles.content}>
+        {selectionMode ? (
+          <SelectionActionBar
+            onCancel={handleCancelSelection}
+            onSelectAll={handleSelectAll}
+            onGenerate={() => setShowGeneratePopup(true)}
+          />
+        ) : (
+          <View style={styles.searchArea}>
+            <SearchBar
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search notes..."
+            />
+            <FilterSortBar />
+            <SummaryAction />
+          </View>
+        )}
+
         {isLoading ? (
           <ActivityIndicator size="small" color={COLORS.primary} />
         ) : error ? (
@@ -84,16 +251,76 @@ export default function NoteListScreen() {
           <FlatList
             data={notes}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <NoteCard note={item} />}
+            renderItem={({ item }) => (
+              <NoteCard
+                note={item}
+                onPress={handleNotePress}
+                selectionMode={selectionMode}
+                isSelected={selectedIds.has(item.id)}
+                onLongPress={handleLongPress}
+                onToggleSelect={handleToggleSelect}
+                onEdit={handleEditNote}
+                onDelete={handleDeleteNote}
+              />
+            )}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContent}
+            onRefresh={refetch}
+            refreshing={isFetching && !isFetchingNextPage}
             ListEmptyComponent={
               <Text style={styles.placeholder}>No notes yet.</Text>
             }
           />
         )}
       </View>
-    </View>
+
+      <EditNotePopup
+        visible={showEditPopup}
+        note={editingNote}
+        onClose={handleEditClose}
+        onSave={handleEditSave}
+        isSubmitting={updateNote.isPending}
+      />
+      <PatientDetails
+        visible={showPatientDetails}
+        initialValues={{
+          firstName: patientDetails?.firstName || "",
+          lastName: patientDetails?.lastName || "",
+          dateOfBirth: patientDetails?.dateOfBirth || "",
+          email: patientDetails?.email || "",
+          homeAddress: patientDetails?.homeAddress || "",
+          medicalHistorySummary: patientDetails?.medicalHistorySummary || "",
+        }}
+        onClose={() => setShowPatientDetails(false)}
+        onSave={() => setShowPatientDetails(false)}
+      />
+      <GenerateNotesPopup
+        visible={showGeneratePopup}
+        onClose={() => setShowGeneratePopup(false)}
+        onSummaryToPatient={() => setShowGeneratePopup(false)}
+        onReferPatient={() => setShowGeneratePopup(false)}
+      />
+
+      <CreateNotePopup
+        visible={showCreatePopup}
+        onClose={() => setShowCreatePopup(false)}
+        onCreate={handleCreateNote}
+        isSubmitting={createNote.isPending}
+      />
+
+      {selectionMode && selectedIds.size > 0 ? (
+        <SelectionBottomBar
+          selectedCount={selectedIds.size}
+          onPdf={() => {}}
+          onWord={() => {}}
+          onDelete={handleBatchDelete}
+        />
+      ) : (
+        !selectionMode && (
+          <NewNoteButton onPress={() => setShowCreatePopup(true)} />
+        )
+      )}
+    </GestureHandlerRootView>
   );
 }
 
@@ -105,7 +332,7 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: COLORS.primary,
     paddingHorizontal: spacing.sm,
-    paddingBottom: spacing.lg,
+    paddingBottom: spacing.md,
   },
   headerRow: {
     flexDirection: "row",
@@ -175,6 +402,12 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: spacing.sm,
+  },
+  searchArea: {
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: borderRadius.lg,
+    paddingBottom: spacing.sm,
+    marginBottom: spacing.sm,
   },
   listContent: {
     paddingBottom: spacing.lg,

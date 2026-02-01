@@ -15,6 +15,6 @@ export type PatientsStackParamList = {
   PatientDetails: { patientId: string };
   NoteList: { patientId: string; patientName?: string };
   Folder: { folderKey: string };
-  NewNote: { folderKey?: string };
-  NoteDetail: { folderKey: string; noteId: string };
+  NewNote: { patientId: string; patientName: string; consultationType: string; consultationTitle: string };
+  NoteDetail: { patientId: string; noteId: string; noteTitle: string; noteText: string; noteType: string };
 };

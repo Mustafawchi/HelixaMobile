@@ -1,5 +1,6 @@
 export interface Note {
   id: string;
+  patientId: string;
   title: string;
   text: string;
   type: string;
@@ -33,4 +34,57 @@ export interface GetPatientNotesResponse {
   lastVisibleNoteId: string | null;
   count: number;
   patientDetails?: PatientDetails;
+}
+
+// Create Note
+export interface CreateNoteRequest {
+  patientId: string;
+  title: string;
+  text: string;
+  type?: string;
+  matter?: string;
+}
+
+export interface CreateNoteResponse {
+  success: boolean;
+  noteId: string;
+  message: string;
+}
+
+// Update Note
+export interface UpdateNoteRequest {
+  patientId: string;
+  noteId: string;
+  title?: string;
+  text?: string;
+  type?: string;
+  matter?: string;
+}
+
+export interface UpdateNoteResponse {
+  success: boolean;
+  message: string;
+}
+
+// Delete Note
+export interface DeleteNoteRequest {
+  patientId: string;
+  noteId: string;
+}
+
+export interface DeleteNoteResponse {
+  success: boolean;
+  message: string;
+}
+
+// Batch Delete Notes
+export interface DeleteNotesRequest {
+  patientId: string;
+  noteIds: string[];
+}
+
+export interface DeleteNotesResponse {
+  success: boolean;
+  deletedCount: number;
+  message: string;
 }

@@ -6,7 +6,14 @@ import {
   TouchableOpacity,
   Animated,
 } from "react-native";
-import { Swipeable } from "react-native-gesture-handler";
+import ReanimatedSwipeable, {
+  type SwipeableMethods,
+} from "react-native-gesture-handler/ReanimatedSwipeable";
+import Reanimated, {
+  useAnimatedStyle,
+  interpolate,
+  type SharedValue,
+} from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import AppCard from "../../../components/common/AppCard";
 import { COLORS } from "../../../types/colors";
@@ -21,13 +28,58 @@ interface PatientCardProps {
   onDelete: (patient: Patient) => void;
 }
 
+function RightActions({
+  translation,
+  onEdit,
+  onDelete,
+}: {
+  translation: SharedValue<number>;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const animatedStyle = useAnimatedStyle(() => {
+    const scale = interpolate(
+      translation.value,
+      [-160, -80, 0],
+      [1, 0.8, 0],
+      "clamp",
+    );
+    return { transform: [{ scale }] };
+  });
+
+  return (
+    <View style={styles.actionsRow}>
+      <TouchableOpacity
+        style={styles.editAction}
+        onPress={onEdit}
+        activeOpacity={0.7}
+      >
+        <Reanimated.View style={[styles.actionContent, animatedStyle]}>
+          <Ionicons name="pencil" size={22} color={COLORS.white} />
+          <Text style={styles.actionText}>Edit</Text>
+        </Reanimated.View>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.deleteAction}
+        onPress={onDelete}
+        activeOpacity={0.7}
+      >
+        <Reanimated.View style={[styles.actionContent, animatedStyle]}>
+          <Ionicons name="trash" size={22} color={COLORS.white} />
+          <Text style={styles.actionText}>Delete</Text>
+        </Reanimated.View>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 export default function PatientCard({
   patient,
   onPress,
   onEdit,
   onDelete,
 }: PatientCardProps) {
-  const swipeableRef = useRef<Swipeable>(null);
+  const swipeableRef = useRef<SwipeableMethods>(null);
   const rowHeight = useRef(new Animated.Value(1)).current;
 
   const handleDelete = useCallback(() => {
@@ -40,33 +92,20 @@ export default function PatientCard({
     });
   }, [patient, onDelete, rowHeight]);
 
-  const renderRightActions = useCallback(
-    (
-      _progress: Animated.AnimatedInterpolation<number>,
-      dragX: Animated.AnimatedInterpolation<number>,
-    ) => {
-      const scale = dragX.interpolate({
-        inputRange: [-100, -50, 0],
-        outputRange: [1, 0.8, 0],
-        extrapolate: "clamp",
-      });
+  const handleEditSwipe = useCallback(() => {
+    swipeableRef.current?.close();
+    onEdit(patient);
+  }, [patient, onEdit]);
 
-      return (
-        <TouchableOpacity
-          style={styles.deleteAction}
-          onPress={handleDelete}
-          activeOpacity={0.7}
-        >
-          <Animated.View
-            style={[styles.deleteContent, { transform: [{ scale }] }]}
-          >
-            <Ionicons name="trash" size={24} color="#fff" />
-            <Text style={styles.deleteText}>Delete</Text>
-          </Animated.View>
-        </TouchableOpacity>
-      );
-    },
-    [handleDelete],
+  const renderRightActions = useCallback(
+    (_progress: SharedValue<number>, translation: SharedValue<number>) => (
+      <RightActions
+        translation={translation}
+        onEdit={handleEditSwipe}
+        onDelete={handleDelete}
+      />
+    ),
+    [handleDelete, handleEditSwipe],
   );
 
   return (
@@ -89,7 +128,7 @@ export default function PatientCard({
           ],
         }}
       >
-        <Swipeable
+        <ReanimatedSwipeable
           ref={swipeableRef}
           renderRightActions={renderRightActions}
           overshootRight={false}
@@ -108,8 +147,7 @@ export default function PatientCard({
                 {patient.name}
               </Text>
               <Text style={styles.noteCount}>
-                {patient.noteCount}{" "}
-                {patient.noteCount === 1 ? "note" : "notes"}
+                {patient.noteCount} {patient.noteCount === 1 ? "note" : "notes"}
               </Text>
               <Text style={styles.dates}>
                 Created: {formatDate(patient.createdAt)}
@@ -119,15 +157,15 @@ export default function PatientCard({
               </Text>
             </View>
 
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.editButton}
               onPress={() => onEdit(patient)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Ionicons name="pencil" size={18} color={COLORS.primary} />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </TouchableOpacity>
-        </Swipeable>
+        </ReanimatedSwipeable>
       </Animated.View>
     </AppCard>
   );
@@ -184,22 +222,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  actionsRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    marginBottom: spacing.sm,
+  },
+  editAction: {
+    backgroundColor: COLORS.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    width: 76,
+    borderRadius: borderRadius.lg,
+    marginRight: 6,
+  },
   deleteAction: {
     backgroundColor: COLORS.error,
     justifyContent: "center",
     alignItems: "center",
-    width: 90,
+    width: 76,
     borderRadius: borderRadius.lg,
-    marginBottom: spacing.sm,
     marginRight: 10,
   },
-  deleteContent: {
+  actionContent: {
     alignItems: "center",
     justifyContent: "center",
   },
-  deleteText: {
-    color: "#fff",
-    fontSize: 12,
+  actionText: {
+    color: COLORS.white,
+    fontSize: 11,
     fontWeight: "600",
     marginTop: 4,
   },

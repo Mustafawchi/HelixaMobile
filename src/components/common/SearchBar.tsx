@@ -1,8 +1,8 @@
-import React from 'react';
-import { View, TextInput, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../types/colors';
-import { spacing, borderRadius } from '../../theme';
+import React from "react";
+import { View, TextInput, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { COLORS } from "../../types/colors";
+import { spacing, borderRadius } from "../../theme";
 
 interface SearchBarProps {
   value: string;
@@ -10,10 +10,19 @@ interface SearchBarProps {
   placeholder?: string;
 }
 
-export default function SearchBar({ value, onChangeText, placeholder = 'Search...' }: SearchBarProps) {
+export default function SearchBar({
+  value,
+  onChangeText,
+  placeholder = "Search...",
+}: SearchBarProps) {
   return (
     <View style={styles.container}>
-      <Ionicons name="search" size={18} color={COLORS.textMuted} style={styles.icon} />
+      <Ionicons
+        name="search"
+        size={18}
+        color={COLORS.textMuted}
+        style={styles.icon}
+      />
       <TextInput
         style={styles.input}
         value={value}
@@ -27,14 +36,14 @@ export default function SearchBar({ value, onChangeText, placeholder = 'Search..
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: COLORS.surface,
     borderRadius: borderRadius.lg,
     paddingHorizontal: spacing.md,
     marginHorizontal: spacing.lg,
-    marginTop: spacing.md,
-    marginBottom: spacing.md,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
     height: 44,
     shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: 1 },
