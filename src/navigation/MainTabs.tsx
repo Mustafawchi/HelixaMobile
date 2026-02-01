@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import MainScreen from '../screens/patients/MainScreen';
+import PatientsStack from './PatientsStack';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import SettingsScreen from '../screens/settings/SettingsScreen';
 import type { MainTabParamList } from '../types/navigation';
@@ -23,7 +23,7 @@ export default function MainTabs() {
     >
       <Tab.Screen
         name="Patients"
-        component={MainScreen}
+        component={PatientsStack}
         options={{
           tabBarLabel: 'Home',
           tabBarIcon: ({ focused, color }) => (

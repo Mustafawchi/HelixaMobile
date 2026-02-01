@@ -10,6 +10,8 @@ import {
 } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import ScreenHeader from "../../components/common/ScreenHeader";
 import SearchBar from "../../components/common/SearchBar";
 import PatientCard from "./components/PatientCard";
@@ -19,11 +21,15 @@ import { usePaginatedPatients } from "../../hooks/queries/usePatients";
 import { useDeletePatient } from "../../hooks/mutations/useDeletePatient";
 import { useCreatePatient } from "../../hooks/mutations/useCreatePatient";
 import { useUpdatePatient } from "../../hooks/mutations/useUpdatePatient";
+import { notesApi } from "../../api/endpoints/notes";
 import { COLORS } from "../../types/colors";
 import { spacing } from "../../theme";
 import type { Patient } from "../../types/patient";
+import type { PatientsStackParamList } from "../../types/navigation";
 
 export default function MainScreen() {
+  const navigation =
+    useNavigation<NativeStackNavigationProp<PatientsStackParamList>>();
   const [search, setSearch] = useState("");
   const {
     data,
@@ -52,10 +58,16 @@ export default function MainScreen() {
     return patients.reduce((sum, p) => sum + p.noteCount, 0);
   }, [patients]);
 
-  const handlePatientPress = useCallback((patient: Patient) => {
-    setEditingPatient(patient);
-    setShowEditPopup(true);
-  }, []);
+  const handlePatientPress = useCallback(
+    (patient: Patient) => {
+      void notesApi.getPatientNotes({ patientId: patient.patientId });
+      navigation.navigate("NoteList", {
+        patientId: patient.patientId,
+        patientName: patient.name,
+      });
+    },
+    [navigation],
+  );
 
   const handlePatientEdit = useCallback((patient: Patient) => {
     setEditingPatient(patient);
@@ -156,7 +168,7 @@ export default function MainScreen() {
     setIsPulling(false);
     if (overscrollStartRef.current) {
       const elapsed = Date.now() - overscrollStartRef.current;
-      if (elapsed >= 250 && hasNextPage && !isFetchingNextPage) {
+      if (elapsed >= 200 && hasNextPage && !isFetchingNextPage) {
         fetchNextPage();
       }
       overscrollStartRef.current = null;
@@ -164,14 +176,20 @@ export default function MainScreen() {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const listFooter = useCallback(() => {
-    if (!isFetchingNextPage) return null;
+    if (!hasNextPage && !isFetchingNextPage) return null;
     return (
       <View style={styles.footer}>
-        <ActivityIndicator size="small" color={COLORS.primary} />
-        <Text style={styles.footerText}>Loading more...</Text>
+        {isFetchingNextPage ? (
+          <>
+            <ActivityIndicator size="small" color={COLORS.primary} />
+            <Text style={styles.footerText}>Loading more...</Text>
+          </>
+        ) : (
+          <Text style={styles.footerText}>Load more...</Text>
+        )}
       </View>
     );
-  }, [isFetchingNextPage]);
+  }, [hasNextPage, isFetchingNextPage]);
 
   return (
     <GestureHandlerRootView style={styles.container}>
@@ -250,7 +268,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   list: {
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.sm,
   },
   centered: {
     flex: 1,
@@ -259,12 +277,12 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
   },
   footer: {
-    paddingVertical: 20,
+    paddingVertical: 6,
     alignItems: "center",
   },
   footerText: {
-    marginTop: 8,
-    fontSize: 13,
+    marginTop: 2,
+    fontSize: 11,
     color: COLORS.textMuted,
   },
   errorText: {

@@ -76,8 +76,13 @@ export const useUpdatePatient = () => {
         }
       }
     },
-    onSettled: () => {
+    onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({ queryKey: ["patients"] });
+      if (variables?.patientId) {
+        queryClient.invalidateQueries({
+          queryKey: ["notes", "list", variables.patientId],
+        });
+      }
     },
   });
 };

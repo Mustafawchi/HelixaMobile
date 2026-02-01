@@ -13,6 +13,7 @@ export type MainTabParamList = {
 export type PatientsStackParamList = {
   PatientList: undefined;
   PatientDetails: { patientId: string };
+  NoteList: { patientId: string; patientName?: string };
   Folder: { folderKey: string };
   NewNote: { folderKey?: string };
   NoteDetail: { folderKey: string; noteId: string };

@@ -16,6 +16,6 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 420,
     alignSelf: "center",
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
   },
 });
