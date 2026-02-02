@@ -34,13 +34,13 @@ export default function MainScreen() {
   const {
     data,
     isLoading,
-    isFetching,
     error,
     refetch,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
   } = usePaginatedPatients({ searchQuery: search || undefined });
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const { mutate: deletePatient } = useDeletePatient();
   const { mutate: createPatient, isPending: isCreating } = useCreatePatient();
@@ -175,6 +175,11 @@ export default function MainScreen() {
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
+  const handleRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    refetch().finally(() => setIsRefreshing(false));
+  }, [refetch]);
+
   const listFooter = useCallback(() => {
     if (!hasNextPage && !isFetchingNextPage) return null;
     return (
@@ -224,8 +229,8 @@ export default function MainScreen() {
           keyExtractor={keyExtractor}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
-          onRefresh={refetch}
-          refreshing={isFetching && !isFetchingNextPage}
+          onRefresh={handleRefresh}
+          refreshing={isRefreshing}
           onScrollBeginDrag={() => setIsDragging(true)}
           onScroll={handleScroll}
           onScrollEndDrag={handleScrollEndDrag}

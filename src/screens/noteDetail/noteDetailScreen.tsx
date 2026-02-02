@@ -35,7 +35,7 @@ export default function NoteDetailScreen() {
       { patientId, noteId, text: content },
       {
         onSuccess: () => {
-          originalContent.current = content;
+          navigation.goBack();
         },
       },
     );

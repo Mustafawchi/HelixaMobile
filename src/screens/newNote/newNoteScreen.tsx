@@ -21,6 +21,7 @@ import type { PatientsStackParamList } from "../../types/navigation";
 import { useAuth } from "../../hooks/useAuth";
 import RichTextEditor from "../../components/common/RichTextEditor";
 import ConsultationTemplatePopup from "./components/ConsultationTemplatePopup";
+import VoiceRecord from "./components/VoiceRecord";
 
 type NewNoteRoute = RouteProp<PatientsStackParamList, "NewNote">;
 
@@ -75,7 +76,6 @@ export default function NewNoteScreen() {
   );
 
   const [content, setContent] = useState(defaultHTML);
-  const [isRecording, setIsRecording] = useState(false);
   const [recordTarget, setRecordTarget] =
     useState<RecordTarget>("consultation");
   const [procedureType, setProcedureType] = useState("Standard Procedure");
@@ -105,30 +105,8 @@ export default function NewNoteScreen() {
       >
         {/* Voice Recording & Select What to Record */}
         <View style={styles.card}>
-          {/* Consultation Type Badge */}
-          <View style={styles.typeBadgeRow}>
-            <Text style={styles.typeBadgeLabel}>Consultation Type: </Text>
-            <Text style={styles.typeBadgeValue}>{consultationTitle}</Text>
-          </View>
-
           {/* Recording */}
-          <View style={styles.recordingHeader}>
-            <Text style={styles.cardTitle}>Voice Recording</Text>
-            <Text style={styles.timer}>00:00</Text>
-          </View>
-
-          <View style={styles.micContainer}>
-            <TouchableOpacity
-              style={[styles.micButton, isRecording && styles.micButtonActive]}
-              activeOpacity={0.7}
-              onPress={() => setIsRecording(!isRecording)}
-            >
-              <Ionicons name="mic" size={28} color={COLORS.white} />
-            </TouchableOpacity>
-            <Text style={styles.micLabel}>
-              {isRecording ? "Recording..." : "Start Recording"}
-            </Text>
-          </View>
+          <VoiceRecord />
 
           <View style={styles.sectionDivider} />
 
@@ -210,37 +188,6 @@ export default function NewNoteScreen() {
             </Pressable>
           </View>
 
-          <View style={styles.selectorsContainer}>
-            <Pressable
-              style={styles.selectorRow}
-              onPress={() => setShowTemplatePopup(true)}
-            >
-              <Text style={styles.selectorLabel}>Consultation:</Text>
-              <View style={styles.selectorValueRow}>
-                <Text style={styles.selectorValue}>{consultationTitle}</Text>
-                <Ionicons
-                  name="chevron-forward"
-                  size={16}
-                  color={COLORS.textMuted}
-                />
-              </View>
-            </Pressable>
-
-            <View style={styles.divider} />
-
-            <View style={styles.selectorRow}>
-              <Text style={styles.selectorLabel}>Procedure:</Text>
-              <View style={styles.selectorValueRow}>
-                <Text style={styles.selectorValue}>{procedureType}</Text>
-                <Ionicons
-                  name="chevron-forward"
-                  size={16}
-                  color={COLORS.textMuted}
-                />
-              </View>
-            </View>
-          </View>
-
           <View style={styles.infoBanner}>
             <Ionicons name="information-circle" size={18} color={COLORS.info} />
             <Text style={styles.infoBannerText}>
@@ -320,46 +267,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: COLORS.textPrimary,
-  },
-
-  // Voice Recording
-  recordingHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: spacing.md,
-  },
-  timer: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: COLORS.error,
-    fontVariant: ["tabular-nums"],
-  },
-  micContainer: {
-    alignItems: "center",
-    marginBottom: spacing.md,
-  },
-  micButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: COLORS.error,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.sm,
-  },
-  micButtonActive: {
-    backgroundColor: COLORS.errorDark,
-  },
-  micLabel: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: COLORS.textSecondary,
-  },
   sectionDivider: {
     height: 1,
     backgroundColor: COLORS.borderLight,
@@ -367,25 +274,6 @@ const styles = StyleSheet.create({
   },
 
   // Select What to Record
-  typeBadgeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.primaryLighter,
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    alignSelf: "flex-start",
-    marginBottom: spacing.sm,
-  },
-  typeBadgeLabel: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-  },
-  typeBadgeValue: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: COLORS.primary,
-  },
   tabRow: {
     flexDirection: "row",
     gap: spacing.sm,
@@ -440,35 +328,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: COLORS.textMuted,
     marginTop: 1,
-  },
-  selectorsContainer: {
-    backgroundColor: COLORS.surfaceSecondary,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.sm,
-  },
-  selectorRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: spacing.sm,
-  },
-  selectorLabel: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-  },
-  selectorValueRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  selectorValue: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: COLORS.textPrimary,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: COLORS.borderLight,
   },
   infoBanner: {
     flexDirection: "row",

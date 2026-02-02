@@ -1,11 +1,5 @@
 import React, { useState } from "react";
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AppPopup from "../../../components/common/AppPopup";
 import { COLORS } from "../../../types/colors";
@@ -109,17 +103,17 @@ export default function ConsultationTemplatePopup({
       </View>
 
       {/* Template List */}
-      <ScrollView
-        style={styles.list}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
         {activeTab === "templates" ? (
           TEMPLATES.map((template) => {
             const isSelected = template.id === selectedTemplateId;
             return (
               <Pressable
                 key={template.id}
-                style={[styles.templateRow, isSelected && styles.templateRowSelected]}
+                style={[
+                  styles.templateRow,
+                  isSelected && styles.templateRowSelected,
+                ]}
                 onPress={() => onSelect(template)}
               >
                 <View style={styles.templateTextGroup}>
@@ -131,28 +125,27 @@ export default function ConsultationTemplatePopup({
                   >
                     {template.title}
                   </Text>
-                  <Text style={styles.templateDesc}>{template.description}</Text>
+                  <Text style={styles.templateDesc}>
+                    {template.description}
+                  </Text>
                 </View>
                 <View style={styles.templateActions}>
                   {isSelected && (
                     <View style={styles.checkCircle}>
-                      <Ionicons name="checkmark" size={14} color={COLORS.white} />
+                      <Ionicons
+                        name="checkmark"
+                        size={14}
+                        color={COLORS.white}
+                      />
                     </View>
                   )}
-                  <Ionicons
-                    name="pencil"
-                    size={16}
-                    color={COLORS.textMuted}
-                  />
                 </View>
               </Pressable>
             );
           })
         ) : (
           <View style={styles.emptyCustom}>
-            <Text style={styles.emptyCustomText}>
-              No custom templates yet.
-            </Text>
+            <Text style={styles.emptyCustomText}>No custom templates yet.</Text>
           </View>
         )}
       </ScrollView>

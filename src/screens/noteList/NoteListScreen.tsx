@@ -53,8 +53,8 @@ export default function NoteListScreen() {
   const [showPatientDetails, setShowPatientDetails] = useState(false);
   const [showGeneratePopup, setShowGeneratePopup] = useState(false);
 
-  const { data, isLoading, isFetching, isFetchingNextPage, error, refetch } =
-    usePatientNotes(patientId);
+  const { data, isLoading, error, refetch } = usePatientNotes(patientId);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const updateNote = useUpdateNote();
   const deleteNote = useDeleteNote();
   const deleteNotes = useDeleteNotes();
@@ -177,6 +177,11 @@ export default function NoteListScreen() {
     [patientId, navigation],
   );
 
+  const handleRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    refetch().finally(() => setIsRefreshing(false));
+  }, [refetch]);
+
   const handleCreateNote = useCallback(
     (payload: { title: string; type: string }) => {
       setShowCreatePopup(false);
@@ -265,8 +270,8 @@ export default function NoteListScreen() {
             )}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContent}
-            onRefresh={refetch}
-            refreshing={isFetching && !isFetchingNextPage}
+            onRefresh={handleRefresh}
+            refreshing={isRefreshing}
             ListEmptyComponent={
               <Text style={styles.placeholder}>No notes yet.</Text>
             }
