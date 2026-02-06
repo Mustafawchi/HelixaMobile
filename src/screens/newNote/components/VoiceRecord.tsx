@@ -1,63 +1,149 @@
-import React, {
-  useState,
-  useRef,
-  useEffect,
-  useCallback,
-  useMemo,
-} from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import React, { useMemo, useCallback, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS } from "../../../types/colors";
 import { spacing } from "../../../theme";
 import AudioWaveform from "./AudioWaveform";
+import { useAudioRecorder } from "../../../hooks/useAudioRecorder";
+import type { AudioRecordingResult } from "../../../types/audio";
 
-export default function VoiceRecord() {
-  const [isRecording, setIsRecording] = useState(false);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [audioLevels, setAudioLevels] = useState<number[]>(
-    new Array(20).fill(0),
-  );
-  const [isPaused, setIsPaused] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+interface VoiceRecordProps {
+  isUploading?: boolean;
+  onRecordingComplete: (result: AudioRecordingResult) => void;
+  onMicPress?: () => void;
+}
 
-  const handleStartRecording = useCallback(() => {
-    setElapsedSeconds(0);
-    setIsRecording(true);
-    setIsPaused(false);
-    timerRef.current = setInterval(() => {
-      setElapsedSeconds((prev) => prev + 1);
-    }, 1000);
-  }, []);
+function meteringToLevel(metering: number): number {
+  const clamped = Math.max(-60, Math.min(0, metering));
+  return (clamped + 60) / 60;
+}
 
-  const handleStopRecording = useCallback(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = null;
-    setIsRecording(false);
-    setIsPaused(false);
-    setElapsedSeconds(0);
-  }, []);
+const WAVEFORM_BARS = 20;
+
+// Generate spectrum-like levels from a single metering value
+// Simulates frequency bands like Desktop's Web Audio API
+function generateSpectrumLevels(baseLevel: number): number[] {
+  const levels: number[] = [];
+  const centerIndex = WAVEFORM_BARS / 2;
+
+  for (let i = 0; i < WAVEFORM_BARS; i++) {
+    // Create bell curve effect - higher in the middle (voice frequencies)
+    const distanceFromCenter = Math.abs(i - centerIndex) / centerIndex;
+    const bellCurve = 1 - distanceFromCenter * 0.6;
+
+    // Add some pseudo-random variation based on index for spectrum effect
+    const variation = Math.sin(i * 1.3) * 0.15 + Math.cos(i * 0.7) * 0.1;
+
+    const level = Math.max(0.08, baseLevel * bellCurve + variation * baseLevel);
+    levels.push(Math.min(1, level));
+  }
+
+  return levels;
+}
+
+export default function VoiceRecord({
+  isUploading = false,
+  onRecordingComplete,
+  onMicPress,
+}: VoiceRecordProps) {
+  const {
+    isRecording,
+    isPaused,
+    durationMs,
+    metering,
+    start,
+    pause,
+    resume,
+    stop,
+    cancel,
+  } = useAudioRecorder();
+
+  const [displayDurationMs, setDisplayDurationMs] = React.useState(0);
 
   useEffect(() => {
-    if (!isRecording) return;
+    if (!isRecording) {
+      setDisplayDurationMs(0);
+      return;
+    }
+    setDisplayDurationMs((prev) => Math.max(prev, durationMs));
+  }, [isRecording, durationMs]);
+
+  useEffect(() => {
+    if (!isRecording || isPaused) return;
     const interval = setInterval(() => {
-      setAudioLevels((prev) =>
-        prev.map(() => (isPaused ? 0.2 : Math.random())),
-      );
-    }, 80);
+      setDisplayDurationMs((prev) => prev + 1000);
+    }, 1000);
     return () => clearInterval(interval);
   }, [isRecording, isPaused]);
 
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, []);
+  const handleStartRecording = useCallback(async () => {
+    onMicPress?.();
+    const granted = await start();
+    if (!granted) {
+      Alert.alert(
+        "Permission Required",
+        "Microphone access is needed to record audio.",
+      );
+    }
+  }, [start, onMicPress]);
+
+  const handleSendRecording = useCallback(async () => {
+    const result = await stop();
+    console.log("[VoiceRecord] Recording stopped, result:", result);
+    if (result) {
+      console.log("[VoiceRecord] Sending recording:", {
+        uri: result.uri,
+        durationMs: result.durationMs,
+      });
+      onRecordingComplete(result);
+    }
+  }, [stop, onRecordingComplete]);
+
+  const handleCancelRecording = useCallback(async () => {
+    await cancel();
+  }, [cancel]);
+
+  const handleTogglePause = useCallback(async () => {
+    if (isPaused) {
+      await resume();
+    } else {
+      await pause();
+    }
+  }, [isPaused, pause, resume]);
 
   const formattedTime = useMemo(() => {
-    const mins = Math.floor(elapsedSeconds / 60);
-    const secs = elapsedSeconds % 60;
+    const totalSeconds = Math.floor(displayDurationMs / 1000);
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
     return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-  }, [elapsedSeconds]);
+  }, [displayDurationMs]);
+
+  const audioLevels = useMemo(() => {
+    if (isPaused) {
+      return new Array(WAVEFORM_BARS).fill(0.15);
+    }
+    if (!isRecording) {
+      return new Array(WAVEFORM_BARS).fill(0.08);
+    }
+    const level = meteringToLevel(metering);
+    return generateSpectrumLevels(level);
+  }, [metering, isPaused, isRecording]);
+
+  if (isUploading) {
+    return (
+      <View style={styles.uploadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.uploadingText}>Processing recording...</Text>
+      </View>
+    );
+  }
 
   return (
     <View>
@@ -74,7 +160,7 @@ export default function VoiceRecord() {
             <TouchableOpacity
               style={styles.actionCircle}
               activeOpacity={0.7}
-              onPress={handleStopRecording}
+              onPress={handleCancelRecording}
             >
               <Ionicons
                 name="trash-outline"
@@ -85,7 +171,7 @@ export default function VoiceRecord() {
             <TouchableOpacity
               style={styles.actionCircle}
               activeOpacity={0.7}
-              onPress={() => setIsPaused((prev) => !prev)}
+              onPress={handleTogglePause}
             >
               <Ionicons
                 name={isPaused ? "play" : "pause"}
@@ -96,7 +182,7 @@ export default function VoiceRecord() {
             <TouchableOpacity
               style={styles.actionCircle}
               activeOpacity={0.7}
-              onPress={() => {}}
+              onPress={handleSendRecording}
             >
               <Ionicons name="arrow-up" size={22} color={COLORS.error} />
             </TouchableOpacity>
@@ -105,7 +191,9 @@ export default function VoiceRecord() {
           <AudioWaveform levels={audioLevels} paused={isPaused} />
 
           <View style={styles.recordingStatusRow}>
-            <Text style={styles.recordingStatusText}>Recording Active</Text>
+            <Text style={styles.recordingStatusText}>
+              {isPaused ? "Paused" : "Recording Active"}
+            </Text>
           </View>
         </View>
       ) : (
@@ -196,6 +284,19 @@ const styles = StyleSheet.create({
   },
   recordingStatusText: {
     fontSize: 13,
+    fontWeight: "600",
+    color: COLORS.textSecondary,
+  },
+
+  // Uploading State
+  uploadingContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: spacing.xl,
+    gap: spacing.md,
+  },
+  uploadingText: {
+    fontSize: 14,
     fontWeight: "600",
     color: COLORS.textSecondary,
   },

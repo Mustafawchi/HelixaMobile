@@ -9,7 +9,7 @@ import {
 } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { COLORS } from "../../types/colors";
-import { spacing, borderRadius } from "../../theme";
+import { spacing } from "../../theme";
 import type { PatientsStackParamList } from "../../types/navigation";
 import RichTextEditor from "../../components/common/RichTextEditor";
 import SaveNoteButton from "./components/SaveNoteButton";

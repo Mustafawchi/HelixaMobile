@@ -19,6 +19,6 @@ export const firebaseAuth = initializeAuth(app, {
   persistence: getReactNativePersistence(AsyncStorage),
 });
 
-export const functions = getFunctions(app);
+export const functions = getFunctions(app, "australia-southeast2");
 
 export default app;

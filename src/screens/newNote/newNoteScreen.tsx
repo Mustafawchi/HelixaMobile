@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   ScrollView,
   Pressable,
+  Alert,
+  Dimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,9 +21,14 @@ import { COLORS } from "../../types/colors";
 import { spacing, borderRadius } from "../../theme";
 import type { PatientsStackParamList } from "../../types/navigation";
 import { useAuth } from "../../hooks/useAuth";
+import { useStreamingAudioUpload } from "../../hooks/useStreamingAudioUpload";
+import { useCreateNote } from "../../hooks/mutations/useCreateNote";
 import RichTextEditor from "../../components/common/RichTextEditor";
 import ConsultationTemplatePopup from "./components/ConsultationTemplatePopup";
 import VoiceRecord from "./components/VoiceRecord";
+import ProcessingOverlay from "./components/ProcessingOverlay";
+import SaveButton from "./components/SaveButton";
+import type { AudioRecordingResult } from "../../types/audio";
 
 type NewNoteRoute = RouteProp<PatientsStackParamList, "NewNote">;
 
@@ -64,8 +71,10 @@ export default function NewNoteScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<PatientsStackParamList>>();
   const route = useRoute<NewNoteRoute>();
-  const { consultationTitle, consultationType, patientName } = route.params;
+  const { patientId, consultationTitle, consultationType, patientName } =
+    route.params;
   const { user } = useAuth();
+  const createNote = useCreateNote();
 
   const practitionerName = user?.displayName || user?.email || "Practitioner";
 
@@ -78,9 +87,96 @@ export default function NewNoteScreen() {
   const [content, setContent] = useState(defaultHTML);
   const [recordTarget, setRecordTarget] =
     useState<RecordTarget>("consultation");
-  const [procedureType, setProcedureType] = useState("Standard Procedure");
   const [showTemplatePopup, setShowTemplatePopup] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState("standard");
+  const [showSaveButton, setShowSaveButton] = useState(false);
+  const [consultationRecorded, setConsultationRecorded] = useState(false);
+  const [procedureRecorded, setProcedureRecorded] = useState(false);
+
+  // Track base content before streaming starts
+  const baseContentRef = useRef(content);
+
+  // Streaming audio upload hook
+  const streamingUpload = useStreamingAudioUpload({
+    onComplete: (generatedContent) => {
+      console.log("[NewNoteScreen] Streaming complete, content length:", generatedContent.length);
+      setContent(baseContentRef.current + generatedContent);
+      // Mark the recorded section as completed
+      if (recordTarget === "consultation") setConsultationRecorded(true);
+      if (recordTarget === "procedure") setProcedureRecorded(true);
+    },
+    onError: (error) => {
+      console.error("[NewNoteScreen] Streaming error:", error);
+      Alert.alert(
+        "Processing Failed",
+        error.message || "Could not process the recording. Please try again.",
+      );
+    },
+  });
+
+  const handleRecordingComplete = useCallback(
+    async (result: AudioRecordingResult) => {
+      console.log("[NewNoteScreen] Recording complete:", result);
+
+      // Save current content as base before streaming
+      baseContentRef.current = content;
+
+      // Start streaming upload
+      try {
+        await streamingUpload.upload({
+          fileUri: result.uri,
+          templateId: selectedTemplateId,
+          patientId,
+          consultationType,
+          recordTarget,
+        });
+      } catch (error) {
+        // Error is already handled in onError callback
+        console.log("[NewNoteScreen] Upload error handled");
+      }
+    },
+    [content, streamingUpload, selectedTemplateId, patientId, consultationType, recordTarget],
+  );
+
+  const handleCancelProcessing = useCallback(() => {
+    streamingUpload.cancel();
+    // Restore base content if canceled
+    setContent(baseContentRef.current);
+  }, [streamingUpload]);
+
+  const showProcessingOverlay = streamingUpload.isUploading;
+
+  const handleEditorInteraction = useCallback(() => {
+    setShowSaveButton(true);
+  }, []);
+
+  const handleSavePress = useCallback(() => {
+    if (createNote.isPending) return;
+    createNote
+      .mutateAsync({
+        patientId,
+        title: consultationTitle,
+        text: content,
+        type: consultationType,
+      })
+      .then(() => {
+        Alert.alert("Saved", "Your note has been saved.");
+        navigation.goBack();
+      })
+      .catch((error) => {
+        Alert.alert(
+          "Save Failed",
+          error?.message || "Could not save the note. Please try again.",
+        );
+      });
+  }, [
+    createNote,
+    patientId,
+    consultationTitle,
+    content,
+    consultationType,
+    navigation,
+  ]);
 
   return (
     <View style={styles.container}>
@@ -100,113 +196,126 @@ export default function NewNoteScreen() {
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator
         keyboardShouldPersistTaps="handled"
       >
-        {/* Voice Recording & Select What to Record */}
+        {/* Controls section */}
         <View style={styles.card}>
-          {/* Recording */}
-          <VoiceRecord />
+          <VoiceRecord
+            isUploading={streamingUpload.isUploading}
+            onRecordingComplete={handleRecordingComplete}
+            onMicPress={() => setShowSaveButton(true)}
+          />
 
           <View style={styles.sectionDivider} />
 
-          {/* Select What to Record */}
           <View style={styles.tabRow}>
             <Pressable
               style={[
                 styles.tab,
-                recordTarget === "consultation" && styles.tabActive,
+                recordTarget === "consultation" && !consultationRecorded && styles.tabSelected,
+                consultationRecorded && styles.tabCompleted,
               ]}
-              onPress={() => setRecordTarget("consultation")}
+              onPress={() => !consultationRecorded && setRecordTarget("consultation")}
+              disabled={consultationRecorded}
             >
               <View
                 style={[
                   styles.tabNumber,
-                  recordTarget === "consultation" && styles.tabNumberActive,
+                  consultationRecorded && styles.tabNumberCompleted,
                 ]}
               >
-                <Text
-                  style={[
-                    styles.tabNumberText,
-                    recordTarget === "consultation" &&
-                      styles.tabNumberTextActive,
-                  ]}
-                >
-                  1
-                </Text>
+                {consultationRecorded ? (
+                  <Ionicons name="checkmark" size={12} color="#166534" />
+                ) : (
+                  <Text style={styles.tabNumberText}>1</Text>
+                )}
               </View>
               <View style={styles.tabTextGroup}>
-                <Text
-                  style={[
-                    styles.tabTitle,
-                    recordTarget === "consultation" && styles.tabTitleActive,
-                  ]}
-                >
-                  Consultation
-                </Text>
-                <Text style={styles.tabSubtitle} numberOfLines={1}>
-                  {consultationTitle}
-                </Text>
+                <Text style={styles.tabTitle}>Consultation</Text>
+                {consultationRecorded && (
+                  <View style={styles.tabStatusRow}>
+                    <Ionicons name="checkmark-circle" size={13} color="#166534" />
+                    <Text style={styles.tabStatusText}>Recorded</Text>
+                  </View>
+                )}
               </View>
+              {recordTarget === "consultation" && !consultationRecorded && (
+                <View style={styles.tabIndicator} />
+              )}
             </Pressable>
 
             <Pressable
               style={[
                 styles.tab,
-                recordTarget === "procedure" && styles.tabActive,
+                recordTarget === "procedure" && !procedureRecorded && styles.tabSelected,
+                procedureRecorded && styles.tabCompleted,
               ]}
-              onPress={() => setRecordTarget("procedure")}
+              onPress={() => !procedureRecorded && setRecordTarget("procedure")}
+              disabled={procedureRecorded}
             >
               <View
                 style={[
                   styles.tabNumber,
-                  recordTarget === "procedure" && styles.tabNumberActive,
+                  procedureRecorded && styles.tabNumberCompleted,
                 ]}
               >
-                <Text
-                  style={[
-                    styles.tabNumberText,
-                    recordTarget === "procedure" && styles.tabNumberTextActive,
-                  ]}
-                >
-                  2
-                </Text>
+                {procedureRecorded ? (
+                  <Ionicons name="checkmark" size={12} color="#166534" />
+                ) : (
+                  <Text style={styles.tabNumberText}>2</Text>
+                )}
               </View>
               <View style={styles.tabTextGroup}>
-                <Text
-                  style={[
-                    styles.tabTitle,
-                    recordTarget === "procedure" && styles.tabTitleActive,
-                  ]}
-                >
-                  Procedure
-                </Text>
-                <Text style={styles.tabSubtitle} numberOfLines={1}>
-                  {procedureType}
-                </Text>
+                <Text style={styles.tabTitle}>Procedure</Text>
+                {procedureRecorded && (
+                  <View style={styles.tabStatusRow}>
+                    <Ionicons name="checkmark-circle" size={13} color="#166534" />
+                    <Text style={styles.tabStatusText}>Recorded</Text>
+                  </View>
+                )}
               </View>
+              {recordTarget === "procedure" && !procedureRecorded && (
+                <View style={[styles.tabIndicator, styles.tabIndicatorBlue]} />
+              )}
             </Pressable>
-          </View>
-
-          <View style={styles.infoBanner}>
-            <Ionicons name="information-circle" size={18} color={COLORS.info} />
-            <Text style={styles.infoBannerText}>
-              Press the record button below to record{" "}
-              <Text style={styles.infoBannerBold}>{recordTarget}</Text>
-            </Text>
           </View>
         </View>
 
-        {/* Rich Text Editor */}
-        <View style={styles.editorCard}>
+        {/* Editor with fixed height for scrollable page */}
+        <View
+          style={styles.editorWrapper}
+          onStartShouldSetResponderCapture={() => {
+            handleEditorInteraction();
+            return false;
+          }}
+        >
           <RichTextEditor
             value={content}
             onChange={setContent}
             placeholder="Start typing your note..."
-            minHeight={700}
+            minHeight={Math.round(Dimensions.get("window").height * 0.75)}
           />
         </View>
       </ScrollView>
+
+      {showSaveButton && (
+        <SaveButton
+          onPress={handleSavePress}
+          loading={createNote.isPending}
+          style={[styles.saveButton, { bottom: insets.bottom + spacing.md }]}
+        />
+      )}
+
+      {/* Processing Overlay */}
+      {showProcessingOverlay && (
+        <ProcessingOverlay
+          phase={streamingUpload.state.phase}
+          phaseText={streamingUpload.phaseText}
+          progress={streamingUpload.state.progress}
+          onCancel={handleCancelProcessing}
+        />
+      )}
 
       <ConsultationTemplatePopup
         visible={showTemplatePopup}
@@ -222,6 +331,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  saveButton: {
+    position: "absolute",
+    right: spacing.md,
   },
   header: {
     backgroundColor: COLORS.primary,
@@ -257,6 +370,9 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     paddingBottom: spacing.xxl,
   },
+  editorWrapper: {
+    marginTop: spacing.sm,
+  },
 
   // Card
   card: {
@@ -273,82 +389,80 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
 
-  // Select What to Record
+  // Section Selection Tabs
   tabRow: {
     flexDirection: "row",
-    gap: spacing.sm,
-    marginBottom: spacing.md,
+    gap: 10,
   },
   tab: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: borderRadius.lg,
-    borderWidth: 1.5,
-    borderColor: COLORS.borderLight,
-    padding: spacing.sm,
-    gap: spacing.sm,
-    backgroundColor: COLORS.surface,
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 8,
+    position: "relative" as const,
+    overflow: "hidden" as const,
   },
-  tabActive: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primaryLighter,
+  tabSelected: {
+    borderColor: "#9ca3af",
+  },
+  tabCompleted: {
+    backgroundColor: "#fafafa",
+    borderColor: "#d1d5db",
   },
   tabNumber: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: COLORS.borderLight,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "#f3f4f6",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
     alignItems: "center",
     justifyContent: "center",
   },
-  tabNumberActive: {
-    backgroundColor: COLORS.primary,
+  tabNumberCompleted: {
+    backgroundColor: "#d1fae5",
+    borderColor: "#a7f3d0",
   },
   tabNumberText: {
     fontSize: 12,
-    fontWeight: "700",
-    color: COLORS.textMuted,
-  },
-  tabNumberTextActive: {
-    color: COLORS.white,
+    fontWeight: "600",
+    color: "#6b7280",
   },
   tabTextGroup: {
     flex: 1,
   },
   tabTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: COLORS.textSecondary,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#111827",
   },
-  tabTitleActive: {
-    color: COLORS.primary,
-  },
-  tabSubtitle: {
-    fontSize: 11,
-    color: COLORS.textMuted,
-    marginTop: 1,
-  },
-  infoBanner: {
+  tabStatusRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.infoLight,
-    borderRadius: borderRadius.md,
-    padding: spacing.sm,
-    gap: spacing.sm,
-    marginTop: spacing.sm,
+    gap: 4,
+    marginTop: 2,
   },
-  infoBannerText: {
-    fontSize: 12,
-    color: COLORS.info,
-    flex: 1,
+  tabStatusText: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: "#166534",
   },
-  infoBannerBold: {
-    fontWeight: "700",
+  tabIndicator: {
+    position: "absolute" as const,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: COLORS.primary,
+  },
+  tabIndicatorBlue: {
+    backgroundColor: "#3b82f6",
   },
 
-  // Editor
-  editorCard: {
-    marginBottom: spacing.sm,
-  },
 });

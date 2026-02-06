@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   ActivityIndicator,
   FlatList,
   Alert,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -17,6 +19,7 @@ import {
   type RouteProp,
 } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useQueryClient } from "@tanstack/react-query";
 import { COLORS } from "../../types/colors";
 import { spacing, borderRadius } from "../../theme";
 import { usePatientNotes } from "../../hooks/queries/useNotes";
@@ -26,7 +29,7 @@ import { useDeleteNotes } from "../../hooks/mutations/useDeleteNotes";
 import { useCreateNote } from "../../hooks/mutations/useCreateNote";
 import SearchBar from "../../components/common/SearchBar";
 import NoteCard from "./components/NoteCard";
-import FilterSortBar from "./components/FilterSortBar";
+import FilterSortBar, { NoteTypeValue } from "./components/FilterSortBar";
 import SummaryAction from "./components/SummaryAction";
 import NewNoteButton from "./components/NewNoteButton";
 import SelectionActionBar from "./components/SelectionActionBar";
@@ -34,6 +37,10 @@ import SelectionBottomBar from "./components/SelectionBottomBar";
 import EditNotePopup from "./components/EditNotePopup";
 import PatientDetails from "./components/PatientDetails";
 import GenerateNotesPopup from "./components/GenerateNotesPopup";
+import SortOptionsPopup, {
+  type NoteSortKey,
+} from "./components/SortOptionsPopup";
+import { useUpdatePatient } from "../../hooks/mutations/useUpdatePatient";
 import CreateNotePopup from "./components/CreateNotePopup";
 import type { PatientsStackParamList } from "../../types/navigation";
 import type { Note } from "../../types/note";
@@ -52,19 +59,66 @@ export default function NoteListScreen() {
   const [showEditPopup, setShowEditPopup] = useState(false);
   const [showPatientDetails, setShowPatientDetails] = useState(false);
   const [showGeneratePopup, setShowGeneratePopup] = useState(false);
+  const [showSortPopup, setShowSortPopup] = useState(false);
+  const [sortKey, setSortKey] = useState<NoteSortKey>("created-desc");
+  const updatePatient = useUpdatePatient();
+  const queryClient = useQueryClient();
 
-  const { data, isLoading, error, refetch } = usePatientNotes(patientId);
+  const {
+    data,
+    isLoading,
+    error,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = usePatientNotes(patientId);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const updateNote = useUpdateNote();
   const deleteNote = useDeleteNote();
   const deleteNotes = useDeleteNotes();
   const createNote = useCreateNote();
   const [showCreatePopup, setShowCreatePopup] = useState(false);
+  const [filterType, setFilterType] = useState<NoteTypeValue>("all");
 
-  const notes = useMemo(() => {
+  const allNotes = useMemo(() => {
     if (!data?.pages) return [];
     return data.pages.flatMap((page) => page.notes);
   }, [data]);
+
+  const notes = useMemo(() => {
+    const filtered =
+      filterType === "all"
+        ? allNotes
+        : allNotes.filter((note) => note.type === filterType);
+
+    const sorted = [...filtered];
+    sorted.sort((a, b) => {
+      switch (sortKey) {
+        case "created-asc":
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        case "created-desc":
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case "edited-asc": {
+          const aDate = a.lastEdited || a.updatedAt || a.createdAt;
+          const bDate = b.lastEdited || b.updatedAt || b.createdAt;
+          return new Date(aDate).getTime() - new Date(bDate).getTime();
+        }
+        case "edited-desc": {
+          const aDate = a.lastEdited || a.updatedAt || a.createdAt;
+          const bDate = b.lastEdited || b.updatedAt || b.createdAt;
+          return new Date(bDate).getTime() - new Date(aDate).getTime();
+        }
+        case "title-asc":
+          return (a.title || "").localeCompare(b.title || "");
+        case "title-desc":
+          return (b.title || "").localeCompare(a.title || "");
+        default:
+          return 0;
+      }
+    });
+    return sorted;
+  }, [allNotes, filterType, sortKey]);
 
   const patientDetails = data?.pages?.[0]?.patientDetails;
   const patientName =
@@ -182,6 +236,69 @@ export default function NoteListScreen() {
     refetch().finally(() => setIsRefreshing(false));
   }, [refetch]);
 
+  useEffect(() => {
+    if (!patientId) return;
+    queryClient.removeQueries({ queryKey: ["notes", "list", patientId] });
+    refetch();
+  }, [filterType, sortKey, patientId, queryClient, refetch]);
+
+  const overscrollStartRef = useRef<number | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isPulling, setIsPulling] = useState(false);
+
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { contentOffset, layoutMeasurement, contentSize } =
+        event.nativeEvent;
+      const distancePastEnd =
+        contentOffset.y + layoutMeasurement.height - contentSize.height;
+
+      if (
+        isDragging &&
+        distancePastEnd > 12 &&
+        hasNextPage &&
+        !isFetchingNextPage
+      ) {
+        if (!overscrollStartRef.current) {
+          overscrollStartRef.current = Date.now();
+        }
+        setIsPulling(true);
+      } else {
+        overscrollStartRef.current = null;
+        setIsPulling(false);
+      }
+    },
+    [hasNextPage, isFetchingNextPage, isDragging],
+  );
+
+  const handleScrollEndDrag = useCallback(() => {
+    setIsDragging(false);
+    setIsPulling(false);
+    if (overscrollStartRef.current) {
+      const elapsed = Date.now() - overscrollStartRef.current;
+      if (elapsed >= 200 && hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
+      }
+      overscrollStartRef.current = null;
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const listFooter = useCallback(() => {
+    if (!hasNextPage && !isFetchingNextPage) return null;
+    return (
+      <View style={styles.footer}>
+        {isFetchingNextPage ? (
+          <>
+            <ActivityIndicator size="small" color={COLORS.primary} />
+            <Text style={styles.footerText}>Loading more...</Text>
+          </>
+        ) : (
+          <Text style={styles.footerText}>Load more...</Text>
+        )}
+      </View>
+    );
+  }, [hasNextPage, isFetchingNextPage]);
+
   const handleCreateNote = useCallback(
     (payload: { title: string; type: string }) => {
       setShowCreatePopup(false);
@@ -199,32 +316,26 @@ export default function NoteListScreen() {
     <GestureHandlerRootView style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
         <View style={styles.headerRow}>
-          <View style={styles.leftGroup}>
-            <TouchableOpacity
-              style={styles.iconButton}
-              activeOpacity={0.8}
-              onPress={() => navigation.goBack()}
-            >
-              <Ionicons name="chevron-back" size={20} color={COLORS.white} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.avatar}
-              activeOpacity={0.8}
-              onPress={() => setShowPatientDetails(true)}
-            >
-              <Ionicons name="person" size={20} color={COLORS.white} />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.iconButton}
+            activeOpacity={0.8}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="chevron-back" size={20} color={COLORS.white} />
+          </TouchableOpacity>
 
-          <View style={styles.titleGroup}>
+          <TouchableOpacity
+            style={styles.patientDetailsButton}
+            activeOpacity={0.8}
+            onPress={() => setShowPatientDetails(true)}
+          >
             <Text style={styles.title}>{patientName}</Text>
-          </View>
+            <Ionicons name="chevron-down" size={16} color={COLORS.white} />
+          </TouchableOpacity>
 
-          <View style={styles.rightGroup}>
-            <View style={styles.notesPill}>
-              <Text style={styles.notesCount}>{notes.length}</Text>
-              <Text style={styles.notesLabel}>notes</Text>
-            </View>
+          <View style={styles.notesPill}>
+            <Text style={styles.notesCount}>{allNotes.length}</Text>
+            <Text style={styles.notesLabel}>notes</Text>
           </View>
         </View>
       </View>
@@ -243,7 +354,11 @@ export default function NoteListScreen() {
               onChangeText={setSearch}
               placeholder="Search notes..."
             />
-            <FilterSortBar />
+            <FilterSortBar
+              selectedFilter={filterType}
+              onFilterChange={setFilterType}
+              onSort={() => setShowSortPopup(true)}
+            />
             <SummaryAction />
           </View>
         )}
@@ -272,8 +387,20 @@ export default function NoteListScreen() {
             contentContainerStyle={styles.listContent}
             onRefresh={handleRefresh}
             refreshing={isRefreshing}
+            onScrollBeginDrag={() => setIsDragging(true)}
+            onScroll={handleScroll}
+            onScrollEndDrag={handleScrollEndDrag}
+            onMomentumScrollEnd={() => {
+              setIsDragging(false);
+              setIsPulling(false);
+              overscrollStartRef.current = null;
+            }}
+            scrollEventThrottle={16}
+            ListFooterComponent={listFooter}
             ListEmptyComponent={
-              <Text style={styles.placeholder}>No notes yet.</Text>
+              <Text style={styles.placeholder}>
+                {filterType !== "all" ? "No notes match the filter." : "No notes yet."}
+              </Text>
             }
           />
         )}
@@ -297,13 +424,33 @@ export default function NoteListScreen() {
           medicalHistorySummary: patientDetails?.medicalHistorySummary || "",
         }}
         onClose={() => setShowPatientDetails(false)}
-        onSave={() => setShowPatientDetails(false)}
+        onSave={(payload) => {
+          updatePatient.mutate({
+            patientId,
+            firstName: payload.firstName || undefined,
+            lastName: payload.lastName || undefined,
+            dateOfBirth: payload.dateOfBirth || undefined,
+            email: payload.email || undefined,
+            homeAddress: payload.homeAddress || undefined,
+          });
+          setShowPatientDetails(false);
+        }}
+        isSubmitting={updatePatient.isPending}
       />
       <GenerateNotesPopup
         visible={showGeneratePopup}
         onClose={() => setShowGeneratePopup(false)}
         onSummaryToPatient={() => setShowGeneratePopup(false)}
         onReferPatient={() => setShowGeneratePopup(false)}
+      />
+      <SortOptionsPopup
+        visible={showSortPopup}
+        selected={sortKey}
+        onSelect={(key) => {
+          setSortKey(key);
+          setShowSortPopup(false);
+        }}
+        onClose={() => setShowSortPopup(false)}
       />
 
       <CreateNotePopup
@@ -344,49 +491,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  leftGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
   iconButton: {
     width: 32,
     height: 32,
-    borderRadius: 17,
+    borderRadius: 16,
     backgroundColor: "rgba(255, 255, 255, 0.18)",
     alignItems: "center",
     justifyContent: "center",
   },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 17,
-    backgroundColor: "rgba(255, 255, 255, 0.18)",
+  patientDetailsButton: {
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-  },
-  titleGroup: {
-    alignItems: "center",
     flex: 1,
     marginHorizontal: spacing.sm,
+    gap: spacing.xs,
+    backgroundColor: "rgba(255, 255, 255, 0.18)",
+    borderRadius: borderRadius.full,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
   title: {
     fontSize: 18,
     fontWeight: "700",
     color: COLORS.white,
   },
-  subtitle: {
-    fontSize: 12,
-    color: "rgba(255, 255, 255, 0.75)",
-    marginTop: 2,
-  },
-  rightGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
   notesPill: {
-    backgroundColor: "rgba(255, 255, 255, 0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.5)",
     borderRadius: borderRadius.full,
     paddingHorizontal: spacing.sm,
     paddingVertical: 6,
@@ -416,6 +548,15 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: spacing.lg,
+  },
+  footer: {
+    paddingVertical: 6,
+    alignItems: "center",
+  },
+  footerText: {
+    marginTop: 2,
+    fontSize: 11,
+    color: COLORS.textMuted,
   },
   placeholder: {
     color: COLORS.textMuted,

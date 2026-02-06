@@ -8,6 +8,7 @@ import {
   ScrollView,
 } from "react-native";
 import AppPopup from "../../../components/common/AppPopup";
+import DatePicker from "../../../components/common/DatePicker";
 import { COLORS } from "../../../types/colors";
 import { borderRadius, spacing, typography } from "../../../theme";
 
@@ -27,6 +28,7 @@ interface PatientDetailsProps {
   onClose: () => void;
   onSave?: (payload: PatientDetailsPayload) => void;
   onUpdateFromNotes?: () => void;
+  isSubmitting?: boolean;
 }
 
 export default function PatientDetails({
@@ -36,6 +38,7 @@ export default function PatientDetails({
   onClose,
   onSave,
   onUpdateFromNotes,
+  isSubmitting = false,
 }: PatientDetailsProps) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -57,7 +60,7 @@ export default function PatientDetails({
   const canSave = useMemo(() => firstName.trim().length > 0, [firstName]);
 
   const handleSave = () => {
-    if (!canSave) return;
+    if (!canSave || isSubmitting) return;
     onSave?.({
       firstName: firstName.trim(),
       lastName: lastName.trim(),
@@ -104,16 +107,13 @@ export default function PatientDetails({
           />
         </View>
 
-        <View style={styles.field}>
-          <Text style={styles.label}>Date of Birth</Text>
-          <TextInput
-            value={dateOfBirth}
-            onChangeText={setDateOfBirth}
-            placeholder="dd / mm / yyyy"
-            placeholderTextColor={COLORS.textMuted}
-            style={styles.input}
-          />
-        </View>
+        <DatePicker
+          label="Date of Birth"
+          value={dateOfBirth}
+          onChange={setDateOfBirth}
+          placeholder="Select date of birth"
+          maxDate={new Date().toISOString().split("T")[0]}
+        />
 
         <View style={styles.field}>
           <Text style={styles.label}>Email Address</Text>
@@ -166,7 +166,10 @@ export default function PatientDetails({
           <Text style={styles.cancelText}>Cancel</Text>
         </Pressable>
         <Pressable
-          style={[styles.saveButton, !canSave && styles.saveButtonDisabled]}
+          style={[
+            styles.saveButton,
+            (!canSave || isSubmitting) && styles.saveButtonDisabled,
+          ]}
           onPress={handleSave}
         >
           <Text style={styles.saveText}>Save Changes</Text>

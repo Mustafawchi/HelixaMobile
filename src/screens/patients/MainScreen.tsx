@@ -17,6 +17,9 @@ import SearchBar from "../../components/common/SearchBar";
 import PatientCard from "./components/PatientCard";
 import CreatePatientPopup from "./components/CreatePatientPopup";
 import EditPatientPopup from "./components/EditPatientPopup";
+import SortOptionsPopup, {
+  type PatientSortKey,
+} from "./components/SortOptionsPopup";
 import { usePaginatedPatients } from "../../hooks/queries/usePatients";
 import { useDeletePatient } from "../../hooks/mutations/useDeletePatient";
 import { useCreatePatient } from "../../hooks/mutations/useCreatePatient";
@@ -31,6 +34,16 @@ export default function MainScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<PatientsStackParamList>>();
   const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<PatientSortKey>("name-asc");
+  const [showSortPopup, setShowSortPopup] = useState(false);
+  const sortBy =
+    sortKey === "created-desc"
+      ? "createdAt"
+      : sortKey === "name-asc" || sortKey === "name-desc"
+        ? "name"
+        : "lastModified";
+  const sortDirection =
+    sortKey === "name-desc" ? "desc" : sortKey === "created-desc" ? "desc" : "asc";
   const {
     data,
     isLoading,
@@ -39,7 +52,11 @@ export default function MainScreen() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = usePaginatedPatients({ searchQuery: search || undefined });
+  } = usePaginatedPatients({
+    searchQuery: search || undefined,
+    sortBy,
+    sortDirection,
+  });
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const { mutate: deletePatient } = useDeletePatient();
@@ -51,8 +68,12 @@ export default function MainScreen() {
 
   const patients = useMemo(() => {
     if (!data?.pages) return [];
-    return data.pages.flatMap((page) => page.patients);
-  }, [data]);
+    const flat = data.pages.flatMap((page) => page.patients);
+    if (sortKey === "note-count") {
+      return [...flat].sort((a, b) => b.noteCount - a.noteCount);
+    }
+    return flat;
+  }, [data, sortKey]);
 
   const totalNotes = useMemo(() => {
     return patients.reduce((sum, p) => sum + p.noteCount, 0);
@@ -203,7 +224,7 @@ export default function MainScreen() {
         title="Patients"
         subtitle={`${patients.length} patients · ${totalNotes} total notes`}
         actions={[
-          { icon: "filter", onPress: () => {} },
+          { icon: "filter", onPress: () => setShowSortPopup(true) },
           { icon: "add", onPress: () => setShowCreatePopup(true) },
         ]}
       />
@@ -262,6 +283,15 @@ export default function MainScreen() {
         onClose={handleEditClose}
         onSave={handleUpdatePatient}
         isSubmitting={isUpdating}
+      />
+      <SortOptionsPopup
+        visible={showSortPopup}
+        selected={sortKey}
+        onSelect={(key) => {
+          setSortKey(key);
+          setShowSortPopup(false);
+        }}
+        onClose={() => setShowSortPopup(false)}
       />
     </GestureHandlerRootView>
   );
