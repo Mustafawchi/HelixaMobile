@@ -6,9 +6,26 @@ import { COLORS, spacing, typography, borderRadius } from "../../theme";
 import SubscriptionPlanCard from "./components/SubscriptionPlanCard";
 import InsightsCard from "./components/InsightsCard";
 import RecentActivityCard from "./components/RecentActivityCard";
+import { useUser } from "../../hooks/queries/useUser";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
+  const { data: profile, isLoading } = useUser(true);
+
+  const fullName = profile
+    ? `${profile.firstName || ""} ${profile.lastName || ""}`.trim()
+    : "";
+  const initials = profile
+    ? `${profile.firstName?.[0] || ""}${profile.lastName?.[0] || ""}`.toUpperCase()
+    : "";
+  const memberSince = profile?.createdAt
+    ? new Date(profile.createdAt).toLocaleDateString("en-US", {
+        month: "long",
+        year: "numeric",
+      })
+    : "";
+  const roleLabel =
+    profile?.role || profile?.positionInPractice || profile?.practiceName || "";
 
   return (
     <ScrollView
@@ -26,12 +43,18 @@ export default function ProfileScreen() {
         ]}
       >
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>FS</Text>
+          <Text style={styles.avatarText}>
+            {isLoading ? "..." : initials || "?"}
+          </Text>
         </View>
-        <Text style={styles.name}>Furkan Sakizci</Text>
-        <Text style={styles.email}>fursakizci@gmail.com</Text>
-        <Text style={styles.role}>Software</Text>
-        <Text style={styles.member}>Member since October 2025</Text>
+        <Text style={styles.name}>{isLoading ? "Loading..." : fullName}</Text>
+        <Text style={styles.email}>
+          {isLoading ? " " : profile?.email || ""}
+        </Text>
+        {!!roleLabel && <Text style={styles.role}>{roleLabel}</Text>}
+        {!!memberSince && (
+          <Text style={styles.member}>Member since {memberSince}</Text>
+        )}
       </View>
 
       <View style={styles.cardWrapper}>

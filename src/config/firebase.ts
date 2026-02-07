@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 // @ts-ignore - getReactNativePersistence exists in the RN bundle but is missing from TS definitions
 import { initializeAuth, getReactNativePersistence } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -19,6 +20,7 @@ export const firebaseAuth = initializeAuth(app, {
   persistence: getReactNativePersistence(AsyncStorage),
 });
 
+export const db = getFirestore(app);
 export const functions = getFunctions(app, "australia-southeast2");
 
 export default app;
