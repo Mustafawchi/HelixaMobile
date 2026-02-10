@@ -21,7 +21,7 @@ export default function SelectionBottomBar({
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom + spacing.sm }]}>
+    <View style={[styles.container, { paddingBottom: spacing.xs }]}>
       <Text style={styles.countText}>{selectedCount} selected</Text>
       <View style={styles.actions}>
         <TouchableOpacity
@@ -29,8 +29,8 @@ export default function SelectionBottomBar({
           onPress={onPdf}
           activeOpacity={0.7}
         >
-          <Ionicons name="document-text" size={24} color={COLORS.primary} />
-          <Text style={styles.actionLabel}>PDF</Text>
+          <Ionicons name="document-text" size={24} color={COLORS.pdf} />
+          <Text style={[styles.actionLabel, { color: COLORS.pdf }]}>PDF</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -38,8 +38,8 @@ export default function SelectionBottomBar({
           onPress={onWord}
           activeOpacity={0.7}
         >
-          <Ionicons name="document" size={24} color={COLORS.primary} />
-          <Text style={styles.actionLabel}>Word</Text>
+          <Ionicons name="document" size={24} color={COLORS.word} />
+          <Text style={[styles.actionLabel, { color: COLORS.word }]}>Word</Text>
         </TouchableOpacity>
 
         <TouchableOpacity

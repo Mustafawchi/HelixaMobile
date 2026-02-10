@@ -65,6 +65,80 @@ export function getMedicalHistoryOutdatedInfo(
 }
 
 /**
+ * Convert plain text to HTML paragraphs for the RichTextEditor (Quill.js).
+ * Double newlines become separate <p> tags; single newlines become <br>.
+ */
+export function plainTextToHtml(text: string): string {
+  if (!text) return "";
+  return text
+    .split(/\n\n+/)
+    .map((para) => `<p>${para.replace(/\n/g, "<br>")}</p>`)
+    .join("");
+}
+
+/**
+ * Wrap a patient letter summary from the API into a full letter template,
+ * matching the desktop flow: greeting → thank you → summary → sign-off.
+ * Returns HTML ready for the RichTextEditor.
+ */
+export function buildPatientLetterHtml(params: {
+  summary: string;
+  patientName: string;
+  practiceName: string;
+  doctorName: string;
+}): string {
+  const greeting = `Dear ${params.patientName || "[Patient Name]"},`;
+  const thankYou = params.practiceName
+    ? `Thank you for visiting us at ${params.practiceName}.`
+    : "Thank you for visiting us at our practice.";
+  const signOff = `Kind regards,<br>Dr ${params.doctorName || "[Your Name]"}`;
+
+  return (
+    `<p>${greeting}</p>` +
+    `<p>${thankYou}</p>` +
+    plainTextToHtml(params.summary) +
+    `<p>${signOff}</p>`
+  );
+}
+
+/**
+ * Build a short email body template for the patient summary email tab.
+ * Returns HTML ready for the RichTextEditor.
+ */
+export function buildPatientEmailBodyHtml(params: {
+  patientName: string;
+  practiceName?: string;
+}): string {
+  const team = params.practiceName || "Your Healthcare Team";
+  return (
+    `<p>Dear ${params.patientName || "Patient"},</p>` +
+    `<p>Thank you for visiting our practice. Please find attached a summary letter from your recent appointment.</p>` +
+    `<p>If you have any questions about the information provided, please don't hesitate to contact our office.</p>` +
+    `<p>Kind regards,<br>${team}</p>`
+  );
+}
+
+/**
+ * Build a short email body template for the referral email tab.
+ * Returns HTML ready for the RichTextEditor.
+ */
+export function buildReferralEmailBodyHtml(params: {
+  patientName: string;
+  senderName?: string;
+  doctorName?: string;
+}): string {
+  const doctorGreeting = params.doctorName
+    ? `Dear Dr. ${params.doctorName},`
+    : "Dear Doctor,";
+  return (
+    `<p>${doctorGreeting}</p>` +
+    `<p>Please find attached a referral letter for ${params.patientName || "the patient"}.</p>` +
+    `<p>I would appreciate your professional opinion on this case. Please do not hesitate to contact me if you require any further information.</p>` +
+    `<p>Kind regards,<br>${params.senderName || "[Your Name]"}</p>`
+  );
+}
+
+/**
  * Build a fallback referral letter body when AI generation fails.
  */
 export function buildReferralFallbackBody(params: {

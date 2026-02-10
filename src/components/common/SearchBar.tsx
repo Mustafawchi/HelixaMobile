@@ -59,5 +59,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: COLORS.textPrimary,
     padding: 0,
+    letterSpacing: 0,
   },
 });

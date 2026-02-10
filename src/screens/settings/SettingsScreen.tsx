@@ -1,11 +1,52 @@
-import React from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  Switch,
+  Alert,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS, spacing, typography, borderRadius } from "../../theme";
+import { useBiometric } from "../../context/BiometricContext";
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
+  const {
+    biometricEnabled,
+    biometricAvailable,
+    biometryType,
+    toggleBiometric,
+  } = useBiometric();
+  const [togglingBiometric, setTogglingBiometric] = useState(false);
+
+  const biometricLabel =
+    biometryType === "face"
+      ? "Face ID"
+      : biometryType === "fingerprint"
+        ? "Touch ID"
+        : "Biometric Lock";
+
+  const biometricIcon =
+    biometryType === "fingerprint" ? "finger-print" : "lock-closed";
+
+  const handleToggleBiometric = async () => {
+    setTogglingBiometric(true);
+    try {
+      const success = await toggleBiometric();
+      if (!success && !biometricEnabled) {
+        Alert.alert(
+          "Biometric Unavailable",
+          "Please make sure biometric authentication is set up on your device.",
+        );
+      }
+    } finally {
+      setTogglingBiometric(false);
+    }
+  };
 
   return (
     <ScrollView
@@ -47,6 +88,39 @@ export default function SettingsScreen() {
           <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
         </Pressable>
       </View>
+
+      {biometricAvailable && (
+        <>
+          <Text style={styles.sectionTitle}>Security</Text>
+          <View style={styles.card}>
+            <View style={styles.row}>
+              <View style={styles.iconCircle}>
+                <Ionicons
+                  name={biometricIcon}
+                  size={18}
+                  color={COLORS.primary}
+                />
+              </View>
+              <View style={styles.rowText}>
+                <Text style={styles.rowTitle}>{biometricLabel}</Text>
+                <Text style={styles.rowSubtitle}>
+                  Require {biometricLabel} when opening the app
+                </Text>
+              </View>
+              <Switch
+                value={biometricEnabled}
+                onValueChange={handleToggleBiometric}
+                disabled={togglingBiometric}
+                trackColor={{
+                  false: COLORS.border,
+                  true: COLORS.primaryLight,
+                }}
+                thumbColor={biometricEnabled ? COLORS.primary : COLORS.white}
+              />
+            </View>
+          </View>
+        </>
+      )}
 
       <Text style={styles.sectionTitle}>Support & Legal</Text>
       <View style={styles.card}>

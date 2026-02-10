@@ -9,7 +9,7 @@ export type PatientSortKey =
   | "name-asc"
   | "name-desc"
   | "created-desc"
-  | "note-count";
+  | "last-modified-desc";
 
 interface SortOptionsPopupProps {
   visible: boolean;
@@ -22,7 +22,7 @@ const OPTIONS: { key: PatientSortKey; label: string }[] = [
   { key: "name-asc", label: "Name (A-Z)" },
   { key: "name-desc", label: "Name (Z-A)" },
   { key: "created-desc", label: "Date Created" },
-  { key: "note-count", label: "Note Count" },
+  { key: "last-modified-desc", label: "Last Modified (Recent)" },
 ];
 
 export default function SortOptionsPopup({

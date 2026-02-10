@@ -17,4 +17,6 @@ export type PatientsStackParamList = {
   Folder: { folderKey: string };
   NewNote: { patientId: string; patientName: string; consultationType: string; consultationTitle: string };
   NoteDetail: { patientId: string; noteId: string; noteTitle: string; noteText: string; noteType: string };
+  ReferPatient: { patientId: string; patientName: string; patientEmail?: string; selectedNoteIds?: string[]; generatedContent?: string; generatedEmailBody?: string; doctorName?: string; doctorEmail?: string };
+  SummaryToPatient: { patientId: string; patientName: string; patientEmail?: string; selectedNoteIds?: string[]; generatedContent?: string; generatedEmailBody?: string };
 };

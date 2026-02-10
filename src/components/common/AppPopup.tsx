@@ -1,6 +1,8 @@
 import React from "react";
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   View,
@@ -36,7 +38,13 @@ export default function AppPopup({
           style={styles.backdropPressable}
           onPress={dismissOnBackdrop ? onClose : undefined}
         />
-        <View style={[styles.card, contentStyle]}>{children}</View>
+        <KeyboardAvoidingView
+          style={styles.keyboardAvoider}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+        >
+          <View style={[styles.card, contentStyle]}>{children}</View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -64,5 +72,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 20,
     elevation: 6,
+  },
+  keyboardAvoider: {
+    width: "100%",
+    alignItems: "center",
   },
 });

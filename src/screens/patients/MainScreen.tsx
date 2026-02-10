@@ -43,7 +43,9 @@ export default function MainScreen() {
         ? "name"
         : "lastModified";
   const sortDirection =
-    sortKey === "name-desc" ? "desc" : sortKey === "created-desc" ? "desc" : "asc";
+    sortKey === "name-desc" || sortKey === "created-desc" || sortKey === "last-modified-desc"
+      ? "desc"
+      : "asc";
   const {
     data,
     isLoading,
@@ -69,9 +71,6 @@ export default function MainScreen() {
   const patients = useMemo(() => {
     if (!data?.pages) return [];
     const flat = data.pages.flatMap((page) => page.patients);
-    if (sortKey === "note-count") {
-      return [...flat].sort((a, b) => b.noteCount - a.noteCount);
-    }
     return flat;
   }, [data, sortKey]);
 

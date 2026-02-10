@@ -27,6 +27,17 @@ import { useUpdateNote } from "../../hooks/mutations/useUpdateNote";
 import { useDeleteNote } from "../../hooks/mutations/useDeleteNote";
 import { useDeleteNotes } from "../../hooks/mutations/useDeleteNotes";
 import { useCreateNote } from "../../hooks/mutations/useCreateNote";
+import { useGeneratePatientLetter } from "../../hooks/mutations/useGeneratePatientLetter";
+import { useGenerateReferralLetter } from "../../hooks/mutations/useGenerateReferralLetter";
+import { useUser } from "../../hooks/queries/useUser";
+import {
+  buildClinicalNotes,
+  buildReferralFallbackBody,
+  buildPatientLetterHtml,
+  buildPatientEmailBodyHtml,
+  buildReferralEmailBodyHtml,
+  plainTextToHtml,
+} from "../../utils/generate";
 import SearchBar from "../../components/common/SearchBar";
 import NoteCard from "./components/NoteCard";
 import FilterSortBar, { NoteTypeValue } from "./components/FilterSortBar";
@@ -40,10 +51,14 @@ import GenerateNotesPopup from "./components/GenerateNotesPopup";
 import SortOptionsPopup, {
   type NoteSortKey,
 } from "./components/SortOptionsPopup";
+import SelectDoctorPopup from "../generates/components/SelectDoctorPopup";
 import { useUpdatePatient } from "../../hooks/mutations/useUpdatePatient";
 import CreateNotePopup from "./components/CreateNotePopup";
+import { usePdfExport } from "../../hooks/usePdfExport";
+import { buildNotesContentHtml } from "../../utils/pdfTemplate";
 import type { PatientsStackParamList } from "../../types/navigation";
 import type { Note } from "../../types/note";
+import type { Doctor } from "../../types/generate";
 
 type NoteListRoute = RouteProp<PatientsStackParamList, "NoteList">;
 
@@ -59,6 +74,7 @@ export default function NoteListScreen() {
   const [showEditPopup, setShowEditPopup] = useState(false);
   const [showPatientDetails, setShowPatientDetails] = useState(false);
   const [showGeneratePopup, setShowGeneratePopup] = useState(false);
+  const [showSelectDoctorPopup, setShowSelectDoctorPopup] = useState(false);
   const [showSortPopup, setShowSortPopup] = useState(false);
   const [sortKey, setSortKey] = useState<NoteSortKey>("created-desc");
   const updatePatient = useUpdatePatient();
@@ -78,8 +94,13 @@ export default function NoteListScreen() {
   const deleteNote = useDeleteNote();
   const deleteNotes = useDeleteNotes();
   const createNote = useCreateNote();
+  const generatePatientLetter = useGeneratePatientLetter();
+  const generateReferralLetter = useGenerateReferralLetter();
+  const { data: userProfile } = useUser();
+  const { exportPdf, isExporting } = usePdfExport();
   const [showCreatePopup, setShowCreatePopup] = useState(false);
   const [filterType, setFilterType] = useState<NoteTypeValue>("all");
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const allNotes = useMemo(() => {
     if (!data?.pages) return [];
@@ -154,6 +175,118 @@ export default function NoteListScreen() {
     setSelectedIds(new Set());
   }, []);
 
+  const getNotesForGeneration = useCallback(() => {
+    return selectedIds.size > 0
+      ? allNotes.filter((n) => selectedIds.has(n.id))
+      : allNotes;
+  }, [allNotes, selectedIds]);
+
+  const handleReferWithDoctor = useCallback(
+    (doctor: Doctor | null) => {
+      setShowSelectDoctorPopup(false);
+      const notesToUse = getNotesForGeneration();
+      if (notesToUse.length === 0) {
+        Alert.alert("No Notes", "No notes available to generate a referral from.");
+        return;
+      }
+      const noteContent = buildClinicalNotes(notesToUse);
+      const senderName = userProfile
+        ? `${userProfile.firstName} ${userProfile.lastName}`.trim()
+        : "";
+      const senderPosition = userProfile?.positionInPractice || "";
+      const medicalHistory = patientDetails?.medicalHistorySummary || "";
+      const patientDob = patientDetails?.dateOfBirth || "";
+      const patientAddress = patientDetails?.homeAddress || "";
+      const patientEmailVal = patientDetails?.email || "";
+      const referralDoctor = doctor
+        ? { name: doctor.name, surname: doctor.surname }
+        : null;
+      const doctorName = doctor
+        ? `${doctor.name} ${doctor.surname}`.trim()
+        : undefined;
+      const doctorEmail = doctor?.email || undefined;
+      setIsGenerating(true);
+      generateReferralLetter.mutate(
+        {
+          noteContent,
+          patientDetails: {
+            name: patientName,
+            dob: patientDob,
+            email: patientEmailVal,
+            address: patientAddress,
+          },
+          medicalHistory,
+          referralDoctor,
+          senderDetails: { name: senderName, position: senderPosition },
+        },
+        {
+          onSuccess: (data) => {
+            setIsGenerating(false);
+            const letterHtml = data.letterBody
+              ? plainTextToHtml(data.letterBody)
+              : undefined;
+            const emailBodyHtml = buildReferralEmailBodyHtml({
+              patientName,
+              senderName,
+              doctorName,
+            });
+            navigation.navigate("ReferPatient", {
+              patientId,
+              patientName,
+              patientEmail: patientDetails?.email ?? undefined,
+              selectedNoteIds: selectedIds.size > 0 ? Array.from(selectedIds) : undefined,
+              generatedContent: letterHtml,
+              generatedEmailBody: emailBodyHtml,
+              doctorName,
+              doctorEmail,
+            });
+          },
+          onError: (err) => {
+            setIsGenerating(false);
+            const fallback = buildReferralFallbackBody({
+              doctorSurname: doctor?.surname,
+              patientFullName: patientName,
+              patientDOB: patientDob,
+              medicalHistory,
+              senderName,
+              senderPosition,
+            });
+            Alert.alert(
+              "Generation Failed",
+              err instanceof Error
+                ? `${err.message}\n\nA template letter has been loaded instead.`
+                : "Failed to generate letter. A template has been loaded instead.",
+            );
+            navigation.navigate("ReferPatient", {
+              patientId,
+              patientName,
+              patientEmail: patientDetails?.email ?? undefined,
+              selectedNoteIds: selectedIds.size > 0 ? Array.from(selectedIds) : undefined,
+              generatedContent: plainTextToHtml(fallback),
+              generatedEmailBody: buildReferralEmailBodyHtml({
+                patientName,
+                senderName,
+                doctorName,
+              }),
+              doctorName,
+              doctorEmail,
+            });
+          },
+        },
+      );
+    },
+    [
+      generateReferralLetter,
+      getNotesForGeneration,
+      navigation,
+      patientDetails,
+      patientId,
+      patientName,
+      selectedIds,
+      userProfile,
+    ],
+  );
+
   const handleSelectAll = useCallback(() => {
     setSelectedIds(new Set(notes.map((n) => n.id)));
   }, [notes]);
@@ -217,6 +350,13 @@ export default function NoteListScreen() {
       ],
     );
   }, [patientId, selectedIds, deleteNotes]);
+
+  const handleBatchPdf = useCallback(() => {
+    const selectedNotes = allNotes.filter((n) => selectedIds.has(n.id));
+    if (selectedNotes.length === 0) return;
+    const html = buildNotesContentHtml(selectedNotes);
+    exportPdf(html, `${patientName}_Notes`, { includeSignature: false });
+  }, [allNotes, selectedIds, patientName, exportPdf]);
 
   const handleNotePress = useCallback(
     (note: Note) => {
@@ -440,8 +580,75 @@ export default function NoteListScreen() {
       <GenerateNotesPopup
         visible={showGeneratePopup}
         onClose={() => setShowGeneratePopup(false)}
-        onSummaryToPatient={() => setShowGeneratePopup(false)}
-        onReferPatient={() => setShowGeneratePopup(false)}
+        onSummaryToPatient={() => {
+          setShowGeneratePopup(false);
+          const notesToUse = getNotesForGeneration();
+          if (notesToUse.length === 0) {
+            Alert.alert("No Notes", "No notes available to generate a summary from.");
+            return;
+          }
+          const noteContent = buildClinicalNotes(notesToUse);
+          const doctorName = userProfile
+            ? `${userProfile.firstName} ${userProfile.lastName}`.trim()
+            : "";
+          const practiceName = userProfile?.practiceName || "";
+          setIsGenerating(true);
+          generatePatientLetter.mutate(
+            { noteContent, patientName, practiceName, doctorName },
+            {
+              onSuccess: (data) => {
+                setIsGenerating(false);
+                const letterHtml = data.summary
+                  ? buildPatientLetterHtml({
+                      summary: data.summary,
+                      patientName,
+                      practiceName,
+                      doctorName,
+                    })
+                  : undefined;
+                const emailBodyHtml = buildPatientEmailBodyHtml({
+                  patientName,
+                  practiceName,
+                });
+                navigation.navigate("SummaryToPatient", {
+                  patientId,
+                  patientName,
+                  patientEmail: patientDetails?.email ?? undefined,
+                  selectedNoteIds: selectedIds.size > 0 ? Array.from(selectedIds) : undefined,
+                  generatedContent: letterHtml,
+                  generatedEmailBody: emailBodyHtml,
+                });
+              },
+              onError: (err) => {
+                setIsGenerating(false);
+                Alert.alert(
+                  "Generation Failed",
+                  err instanceof Error ? err.message : "Failed to generate summary.",
+                );
+                navigation.navigate("SummaryToPatient", {
+                  patientId,
+                  patientName,
+                  patientEmail: patientDetails?.email ?? undefined,
+                  selectedNoteIds: selectedIds.size > 0 ? Array.from(selectedIds) : undefined,
+                });
+              },
+            },
+          );
+        }}
+        onReferPatient={() => {
+          setShowGeneratePopup(false);
+          const notesToUse = getNotesForGeneration();
+          if (notesToUse.length === 0) {
+            Alert.alert("No Notes", "No notes available to generate a referral from.");
+            return;
+          }
+          setShowSelectDoctorPopup(true);
+        }}
+      />
+      <SelectDoctorPopup
+        visible={showSelectDoctorPopup}
+        onClose={() => setShowSelectDoctorPopup(false)}
+        onSelect={handleReferWithDoctor}
       />
       <SortOptionsPopup
         visible={showSortPopup}
@@ -463,7 +670,7 @@ export default function NoteListScreen() {
       {selectionMode && selectedIds.size > 0 ? (
         <SelectionBottomBar
           selectedCount={selectedIds.size}
-          onPdf={() => {}}
+          onPdf={handleBatchPdf}
           onWord={() => {}}
           onDelete={handleBatchDelete}
         />
@@ -471,6 +678,15 @@ export default function NoteListScreen() {
         !selectionMode && (
           <NewNoteButton onPress={() => setShowCreatePopup(true)} />
         )
+      )}
+
+      {isGenerating && (
+        <View style={styles.generatingOverlay}>
+          <View style={styles.generatingBox}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={styles.generatingText}>Generating...</Text>
+          </View>
+        </View>
       )}
     </GestureHandlerRootView>
   );
@@ -561,5 +777,30 @@ const styles = StyleSheet.create({
   placeholder: {
     color: COLORS.textMuted,
     fontSize: 12,
+  },
+  generatingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: COLORS.overlay,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 100,
+  },
+  generatingBox: {
+    backgroundColor: COLORS.surface,
+    borderRadius: borderRadius.xl,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+    alignItems: "center",
+    gap: spacing.md,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  generatingText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: COLORS.textPrimary,
   },
 });

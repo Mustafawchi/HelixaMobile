@@ -22,6 +22,7 @@ interface RichTextEditorProps {
   onReady?: () => void;
   onContentChanged?: () => void;
   onCurrentContent?: (content: string) => void;
+  onFocus?: () => void;
 }
 
 export interface RichTextEditorHandle {
@@ -49,6 +50,7 @@ function RichTextEditor(
     onReady,
     onContentChanged,
     onCurrentContent,
+    onFocus,
   }: RichTextEditorProps,
   ref: React.Ref<RichTextEditorHandle>,
 ) {
@@ -73,12 +75,14 @@ function RichTextEditor(
           onReady?.();
         } else if (data.type === "current-content") {
           onCurrentContent?.(data.content || "");
+        } else if (data.type === "focus") {
+          onFocus?.();
         }
       } catch {
         // ignore parse errors
       }
     },
-    [onChange, onContentChanged, onReady, onCurrentContent],
+    [onChange, onContentChanged, onReady, onCurrentContent, onFocus],
   );
 
   // Send content to WebView whenever value changes externally
@@ -147,7 +151,7 @@ function RichTextEditor(
         showsVerticalScrollIndicator
         showsHorizontalScrollIndicator={false}
         keyboardDisplayRequiresUserAction
-        hideKeyboardAccessoryView={false}
+        hideKeyboardAccessoryView
         automaticallyAdjustContentInsets={false}
       />
     </View>
@@ -163,7 +167,7 @@ function getEditorHTML(
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=3.0,user-scalable=yes" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
   <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
   <style>
@@ -269,7 +273,7 @@ function getEditorHTML(
       font-family: 'Times New Roman', Georgia, serif;
       font-size: 15px;
       line-height: 1.8;
-      padding: 16px 16px 120px 16px;
+      padding: 16px 16px 24px 16px;
       color: ${COLORS.textPrimary};
       min-height: 100%;
       max-width: 100%;
@@ -357,6 +361,14 @@ function getEditorHTML(
   <script>
     var quillEditor = null;
     var currentZoom = 1.0;
+    var userInteracted = false;
+
+    document.addEventListener('touchstart', function() {
+      userInteracted = true;
+    }, { passive: true });
+    document.addEventListener('mousedown', function() {
+      userInteracted = true;
+    }, { passive: true });
 
     function initializeQuill() {
       if (typeof Quill === 'undefined') {
@@ -392,7 +404,10 @@ function getEditorHTML(
       });
 
       quillEditor.on('selection-change', function(range) {
-        if (range) { scrollCursorIntoView(); }
+        if (range && userInteracted) {
+          scrollCursorIntoView();
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'focus' }));
+        }
       });
 
       function scrollCursorIntoView() {
@@ -510,6 +525,7 @@ export default ForwardedRichTextEditor;
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     borderWidth: 1,
     borderColor: COLORS.border,
     borderRadius: borderRadius.lg,
