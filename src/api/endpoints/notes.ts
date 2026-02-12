@@ -3,6 +3,8 @@ import { functions } from "../../config/firebase";
 import type {
   GetPatientNotesRequest,
   GetPatientNotesResponse,
+  SearchNotesRequest,
+  SearchNotesResponse,
   CreateNoteRequest,
   CreateNoteResponse,
   UpdateNoteRequest,
@@ -26,6 +28,21 @@ export const notesApi = {
 
     if (!result.data.success) {
       throw new Error("Failed to load patient notes");
+    }
+
+    return result.data;
+  },
+
+  searchNotes: async (params: SearchNotesRequest): Promise<SearchNotesResponse> => {
+    const searchNotes = loggedCallable<SearchNotesRequest, SearchNotesResponse>(
+      functions,
+      "searchNotes",
+    );
+
+    const result = await searchNotes(params);
+
+    if (!result.data.success) {
+      throw new Error("Failed to search notes");
     }
 
     return result.data;

@@ -19,4 +19,5 @@ export type PatientsStackParamList = {
   NoteDetail: { patientId: string; noteId: string; noteTitle: string; noteText: string; noteType: string };
   ReferPatient: { patientId: string; patientName: string; patientEmail?: string; selectedNoteIds?: string[]; generatedContent?: string; generatedEmailBody?: string; doctorName?: string; doctorEmail?: string };
   SummaryToPatient: { patientId: string; patientName: string; patientEmail?: string; selectedNoteIds?: string[]; generatedContent?: string; generatedEmailBody?: string };
+  SmartSummary: { patientId: string; patientName: string; patientEmail?: string; selectedNoteIds?: string[]; generatedContent?: string; generatedEmailBody?: string; notesCount?: number; generatedAt?: string; folderType?: string };
 };

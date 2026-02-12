@@ -14,6 +14,7 @@ import type { PatientsStackParamList } from "../../types/navigation";
 import RichTextEditor from "../../components/common/RichTextEditor";
 import SaveNoteButton from "./components/SaveNoteButton";
 import { useUpdateNote } from "../../hooks/mutations/useUpdateNote";
+import { useAutoMedicalHistorySync } from "../../hooks/mutations/useAutoMedicalHistorySync";
 
 type NoteDetailRoute = RouteProp<PatientsStackParamList, "NoteDetail">;
 
@@ -29,12 +30,24 @@ export default function NoteDetailScreen() {
   const hasChanges = content !== originalContent.current;
 
   const updateNote = useUpdateNote();
+  const autoMedicalHistorySync = useAutoMedicalHistorySync();
 
   const handleSave = useCallback(() => {
     updateNote.mutate(
       { patientId, noteId, text: content },
       {
         onSuccess: () => {
+          autoMedicalHistorySync.mutate(
+            { patientId },
+            {
+              onError: (error) => {
+                console.log(
+                  "[MedicalHistorySync] Auto sync after note update failed:",
+                  error,
+                );
+              },
+            },
+          );
           navigation.goBack();
         },
       },

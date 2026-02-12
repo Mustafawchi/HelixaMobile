@@ -6,6 +6,7 @@ import NewNoteScreen from '../screens/newNote/newNoteScreen';
 import NoteDetailScreen from '../screens/noteDetail/noteDetailScreen';
 import ReferPatientScreen from '../screens/generates/refer_patient/ReferPatientScreen';
 import SummaryToPatientScreen from '../screens/generates/summary_to_patient/SummaryToPatientScreen';
+import SmartSummaryScreen from '../screens/generates/SmartSummaryScreen';
 import type { PatientsStackParamList } from '../types/navigation';
 
 const Stack = createNativeStackNavigator<PatientsStackParamList>();
@@ -19,6 +20,7 @@ export default function PatientsStack() {
       <Stack.Screen name="NoteDetail" component={NoteDetailScreen} />
       <Stack.Screen name="ReferPatient" component={ReferPatientScreen} />
       <Stack.Screen name="SummaryToPatient" component={SummaryToPatientScreen} />
+      <Stack.Screen name="SmartSummary" component={SmartSummaryScreen} />
     </Stack.Navigator>
   );
 }

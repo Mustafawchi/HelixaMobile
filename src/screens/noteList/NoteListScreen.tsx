@@ -23,12 +23,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import { COLORS } from "../../types/colors";
 import { spacing, borderRadius } from "../../theme";
 import { usePatientNotes } from "../../hooks/queries/useNotes";
+import { useSearchPatientNotes } from "../../hooks/queries/useNotes";
 import { useUpdateNote } from "../../hooks/mutations/useUpdateNote";
 import { useDeleteNote } from "../../hooks/mutations/useDeleteNote";
 import { useDeleteNotes } from "../../hooks/mutations/useDeleteNotes";
 import { useCreateNote } from "../../hooks/mutations/useCreateNote";
 import { useGeneratePatientLetter } from "../../hooks/mutations/useGeneratePatientLetter";
 import { useGenerateReferralLetter } from "../../hooks/mutations/useGenerateReferralLetter";
+import { useGenerateSmartSummary } from "../../hooks/mutations/useGenerateSmartSummary";
+import { useAutoMedicalHistorySync } from "../../hooks/mutations/useAutoMedicalHistorySync";
 import { useUser } from "../../hooks/queries/useUser";
 import {
   buildClinicalNotes,
@@ -36,9 +39,11 @@ import {
   buildPatientLetterHtml,
   buildPatientEmailBodyHtml,
   buildReferralEmailBodyHtml,
+  htmlToPlainText,
   plainTextToHtml,
 } from "../../utils/generate";
 import SearchBar from "../../components/common/SearchBar";
+import GenerateLoadingOverlay from "../../components/common/GenerateLoadingOverlay";
 import NoteCard from "./components/NoteCard";
 import FilterSortBar, { NoteTypeValue } from "./components/FilterSortBar";
 import SummaryAction from "./components/SummaryAction";
@@ -55,6 +60,7 @@ import SelectDoctorPopup from "../generates/components/SelectDoctorPopup";
 import { useUpdatePatient } from "../../hooks/mutations/useUpdatePatient";
 import CreateNotePopup from "./components/CreateNotePopup";
 import { usePdfExport } from "../../hooks/usePdfExport";
+import { useWordExport } from "../../hooks/useWordExport";
 import { buildNotesContentHtml } from "../../utils/pdfTemplate";
 import type { PatientsStackParamList } from "../../types/navigation";
 import type { Note } from "../../types/note";
@@ -69,6 +75,7 @@ export default function NoteListScreen() {
   const route = useRoute<NoteListRoute>();
   const patientId = route.params?.patientId ?? "";
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const routePatientName = route.params?.patientName;
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [showEditPopup, setShowEditPopup] = useState(false);
@@ -89,6 +96,11 @@ export default function NoteListScreen() {
     hasNextPage,
     isFetchingNextPage,
   } = usePatientNotes(patientId);
+  const { data: searchedData, isFetching: isSearching } = useSearchPatientNotes(
+    patientId,
+    debouncedSearch,
+    50,
+  );
   const [isRefreshing, setIsRefreshing] = useState(false);
   const updateNote = useUpdateNote();
   const deleteNote = useDeleteNote();
@@ -96,8 +108,11 @@ export default function NoteListScreen() {
   const createNote = useCreateNote();
   const generatePatientLetter = useGeneratePatientLetter();
   const generateReferralLetter = useGenerateReferralLetter();
+  const generateSmartSummary = useGenerateSmartSummary();
+  const autoMedicalHistorySync = useAutoMedicalHistorySync();
   const { data: userProfile } = useUser();
   const { exportPdf, isExporting } = usePdfExport();
+  const { exportMultipleWord, isExportingWord } = useWordExport();
   const [showCreatePopup, setShowCreatePopup] = useState(false);
   const [filterType, setFilterType] = useState<NoteTypeValue>("all");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -107,11 +122,34 @@ export default function NoteListScreen() {
     return data.pages.flatMap((page) => page.notes);
   }, [data]);
 
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [search]);
+
   const notes = useMemo(() => {
-    const filtered =
+    const q = debouncedSearch.toLowerCase().trim();
+    const hasSearch = q.length > 0;
+    const hasServerSearch = q.length >= 2;
+
+    const baseNotes = hasSearch
+      ? hasServerSearch
+        ? searchedData?.notes || []
+        : allNotes.filter(
+            (note) =>
+              note.title?.toLowerCase().includes(q) ||
+              note.type?.toLowerCase().includes(q) ||
+              note.text?.toLowerCase().includes(q),
+          )
+      : allNotes;
+
+    let filtered =
       filterType === "all"
-        ? allNotes
-        : allNotes.filter((note) => note.type === filterType);
+        ? baseNotes
+        : baseNotes.filter((note) => note.type === filterType);
 
     const sorted = [...filtered];
     sorted.sort((a, b) => {
@@ -139,7 +177,7 @@ export default function NoteListScreen() {
       }
     });
     return sorted;
-  }, [allNotes, filterType, sortKey]);
+  }, [allNotes, filterType, sortKey, debouncedSearch, searchedData]);
 
   const patientDetails = data?.pages?.[0]?.patientDetails;
   const patientName =
@@ -358,6 +396,28 @@ export default function NoteListScreen() {
     exportPdf(html, `${patientName}_Notes`, { includeSignature: false });
   }, [allNotes, selectedIds, patientName, exportPdf]);
 
+  const handleBatchWord = useCallback(() => {
+    const selectedNotes = allNotes.filter((n) => selectedIds.has(n.id));
+    if (selectedNotes.length === 0) return;
+
+    void exportMultipleWord(
+      selectedNotes.map((note) => ({
+        id: note.id,
+        title: note.title,
+        text: note.text,
+        type: note.type,
+        matter: note.matter,
+        createdAt: note.createdAt,
+        lastEdited: note.lastEdited,
+        updatedAt: note.updatedAt,
+      })),
+      {
+        folderName: patientName,
+      },
+      selectedNotes.length > 1,
+    );
+  }, [allNotes, selectedIds, patientName, exportMultipleWord]);
+
   const handleNotePress = useCallback(
     (note: Note) => {
       navigation.navigate("NoteDetail", {
@@ -380,7 +440,7 @@ export default function NoteListScreen() {
     if (!patientId) return;
     queryClient.removeQueries({ queryKey: ["notes", "list", patientId] });
     refetch();
-  }, [filterType, sortKey, patientId, queryClient, refetch]);
+  }, [patientId, queryClient, refetch]);
 
   const overscrollStartRef = useRef<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -424,6 +484,7 @@ export default function NoteListScreen() {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const listFooter = useCallback(() => {
+    if (debouncedSearch.length > 0) return null;
     if (!hasNextPage && !isFetchingNextPage) return null;
     return (
       <View style={styles.footer}>
@@ -437,7 +498,7 @@ export default function NoteListScreen() {
         )}
       </View>
     );
-  }, [hasNextPage, isFetchingNextPage]);
+  }, [hasNextPage, isFetchingNextPage, debouncedSearch]);
 
   const handleCreateNote = useCallback(
     (payload: { title: string; type: string }) => {
@@ -451,6 +512,77 @@ export default function NoteListScreen() {
     },
     [patientId, navigation],
   );
+
+  const loadingOverlayText = useMemo(() => {
+    if (isGenerating) return "Generating...";
+    if (isExportingWord) return "Exporting Word...";
+    return "";
+  }, [isGenerating, isExportingWord]);
+
+  const isGlobalLoadingVisible = isGenerating || isExportingWord;
+
+  const handleSmartSummary = useCallback(() => {
+    if (isGenerating) return;
+
+    const notesToUse = getNotesForGeneration();
+    if (notesToUse.length === 0) {
+      Alert.alert("No Notes", "No notes available to generate a smart summary.");
+      return;
+    }
+
+    const notesForApi = notesToUse.map((note) => ({
+      title: note.title || "Untitled",
+      type: note.type || "General",
+      text: htmlToPlainText(note.text || ""),
+      createdAt: note.createdAt,
+    }));
+
+    setIsGenerating(true);
+    generateSmartSummary.mutate(
+      {
+        notes: notesForApi,
+        folderName: patientName,
+        folderType: "Patient Notes",
+      },
+      {
+        onSuccess: (data) => {
+          setIsGenerating(false);
+          navigation.navigate("SmartSummary", {
+            patientId,
+            patientName,
+            patientEmail: patientDetails?.email ?? undefined,
+            selectedNoteIds:
+              selectedIds.size > 0 ? Array.from(selectedIds) : undefined,
+            generatedContent: plainTextToHtml(data.summary),
+            generatedEmailBody: buildPatientEmailBodyHtml({
+              patientName,
+              practiceName: userProfile?.practiceName || "",
+            }),
+            notesCount: data.notesCount,
+            generatedAt: data.generatedAt,
+            folderType: data.folderType,
+          });
+        },
+        onError: (err) => {
+          setIsGenerating(false);
+          Alert.alert(
+            "Smart Summary Failed",
+            err instanceof Error ? err.message : "Failed to generate summary.",
+          );
+        },
+      },
+    );
+  }, [
+    isGenerating,
+    getNotesForGeneration,
+    generateSmartSummary,
+    patientName,
+    navigation,
+    patientId,
+    patientDetails?.email,
+    selectedIds,
+    userProfile?.practiceName,
+  ]);
 
   return (
     <GestureHandlerRootView style={styles.container}>
@@ -499,7 +631,7 @@ export default function NoteListScreen() {
               onFilterChange={setFilterType}
               onSort={() => setShowSortPopup(true)}
             />
-            <SummaryAction />
+            <SummaryAction onPress={handleSmartSummary} />
           </View>
         )}
 
@@ -539,7 +671,13 @@ export default function NoteListScreen() {
             ListFooterComponent={listFooter}
             ListEmptyComponent={
               <Text style={styles.placeholder}>
-                {filterType !== "all" ? "No notes match the filter." : "No notes yet."}
+                {search.trim()
+                  ? isSearching
+                    ? "Searching notes..."
+                    : "No notes match your search."
+                  : filterType !== "all"
+                    ? "No notes match the filter."
+                    : "No notes yet."}
               </Text>
             }
           />
@@ -564,6 +702,21 @@ export default function NoteListScreen() {
           medicalHistorySummary: patientDetails?.medicalHistorySummary || "",
         }}
         onClose={() => setShowPatientDetails(false)}
+        onUpdateFromNotes={() => {
+          autoMedicalHistorySync.mutate(
+            { patientId },
+            {
+              onError: (error) => {
+                Alert.alert(
+                  "Update Failed",
+                  error instanceof Error
+                    ? error.message
+                    : "Failed to update medical history.",
+                );
+              },
+            },
+          );
+        }}
         onSave={(payload) => {
           updatePatient.mutate({
             patientId,
@@ -575,7 +728,10 @@ export default function NoteListScreen() {
           });
           setShowPatientDetails(false);
         }}
-        isSubmitting={updatePatient.isPending}
+        isSubmitting={
+          updatePatient.isPending || autoMedicalHistorySync.isPending
+        }
+        isUpdatingFromNotes={autoMedicalHistorySync.isPending}
       />
       <GenerateNotesPopup
         visible={showGeneratePopup}
@@ -671,7 +827,7 @@ export default function NoteListScreen() {
         <SelectionBottomBar
           selectedCount={selectedIds.size}
           onPdf={handleBatchPdf}
-          onWord={() => {}}
+          onWord={handleBatchWord}
           onDelete={handleBatchDelete}
         />
       ) : (
@@ -680,14 +836,10 @@ export default function NoteListScreen() {
         )
       )}
 
-      {isGenerating && (
-        <View style={styles.generatingOverlay}>
-          <View style={styles.generatingBox}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.generatingText}>Generating...</Text>
-          </View>
-        </View>
-      )}
+      <GenerateLoadingOverlay
+        visible={isGlobalLoadingVisible}
+        text={loadingOverlayText}
+      />
     </GestureHandlerRootView>
   );
 }
@@ -777,30 +929,5 @@ const styles = StyleSheet.create({
   placeholder: {
     color: COLORS.textMuted,
     fontSize: 12,
-  },
-  generatingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: COLORS.overlay,
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 100,
-  },
-  generatingBox: {
-    backgroundColor: COLORS.surface,
-    borderRadius: borderRadius.xl,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-    alignItems: "center",
-    gap: spacing.md,
-    shadowColor: COLORS.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-  generatingText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: COLORS.textPrimary,
   },
 });

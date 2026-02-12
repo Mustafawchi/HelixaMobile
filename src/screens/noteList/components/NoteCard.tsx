@@ -5,7 +5,6 @@ import AppCard from "../../../components/common/AppCard";
 import SwipeableRow from "../../../components/common/SwipeableRow";
 import { COLORS } from "../../../types/colors";
 import { spacing, borderRadius } from "../../../theme";
-import { formatDate, formatDateTime } from "../../../utils/formatting";
 import type { Note } from "../../../types/note";
 
 interface NoteCardProps {
@@ -66,14 +65,14 @@ export default function NoteCard({
 
           <View style={styles.contentArea}>
             <Text style={styles.title}>
-              {formatDate(note.createdAt)} - {note.title || "Untitled"}
+              {note.title || "Untitled"}
             </Text>
             <View style={styles.metaRow}>
               <View style={styles.tag}>
                 <Text style={styles.tagText}>{note.type}</Text>
               </View>
               <Text style={styles.metaText}>
-                Last edited: {formatDateTime(lastEdited)}
+                Last edited: {lastEdited}
               </Text>
             </View>
           </View>

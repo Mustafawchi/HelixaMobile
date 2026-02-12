@@ -16,6 +16,31 @@ export interface GeneratePatientLetterResponse {
 }
 
 // ============================================================================
+// SMART SUMMARY
+// ============================================================================
+
+export interface GenerateSummaryNote {
+  title: string;
+  type: string;
+  text: string;
+  createdAt: string;
+}
+
+export interface GenerateSummaryRequest {
+  notes: GenerateSummaryNote[];
+  folderName: string;
+  folderType?: string;
+}
+
+export interface GenerateSummaryResponse {
+  summary: string;
+  notesCount: number;
+  folderName: string;
+  folderType?: string;
+  generatedAt: string;
+}
+
+// ============================================================================
 // REFERRAL LETTER
 // ============================================================================
 

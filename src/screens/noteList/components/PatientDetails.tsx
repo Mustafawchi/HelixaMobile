@@ -6,6 +6,8 @@ import {
   TextInput,
   Pressable,
   ScrollView,
+  Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import AppPopup from "../../../components/common/AppPopup";
 import DatePicker from "../../../components/common/DatePicker";
@@ -29,6 +31,7 @@ interface PatientDetailsProps {
   onSave?: (payload: PatientDetailsPayload) => void;
   onUpdateFromNotes?: () => void;
   isSubmitting?: boolean;
+  isUpdatingFromNotes?: boolean;
 }
 
 export default function PatientDetails({
@@ -39,6 +42,7 @@ export default function PatientDetails({
   onSave,
   onUpdateFromNotes,
   isSubmitting = false,
+  isUpdatingFromNotes = false,
 }: PatientDetailsProps) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -142,8 +146,22 @@ export default function PatientDetails({
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Medical & Dental History</Text>
-          <Pressable style={styles.updateButton} onPress={onUpdateFromNotes}>
-            <Text style={styles.updateText}>Update from Notes</Text>
+          <Pressable
+            style={[
+              styles.updateButton,
+              isUpdatingFromNotes && styles.updateButtonDisabled,
+            ]}
+            onPress={onUpdateFromNotes}
+            disabled={isUpdatingFromNotes}
+          >
+            {isUpdatingFromNotes ? (
+              <View style={styles.updateLoadingRow}>
+                <ActivityIndicator size="small" color={COLORS.white} />
+                <Text style={styles.updateText}>Updating...</Text>
+              </View>
+            ) : (
+              <Text style={styles.updateText}>Update from Notes</Text>
+            )}
           </Pressable>
         </View>
 
@@ -183,7 +201,7 @@ const styles = StyleSheet.create({
   popup: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.lg,
-    height: "75%",
+    height: Dimensions.get("window").height * 0.7,
   },
   headerRow: {
     flexDirection: "row",
@@ -252,6 +270,14 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: 11,
     fontWeight: "600",
+  },
+  updateButtonDisabled: {
+    opacity: 0.85,
+  },
+  updateLoadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   updatedBadge: {
     backgroundColor: "rgba(34, 197, 94, 0.12)",

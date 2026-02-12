@@ -7,10 +7,15 @@ import SubscriptionPlanCard from "./components/SubscriptionPlanCard";
 import InsightsCard from "./components/InsightsCard";
 import RecentActivityCard from "./components/RecentActivityCard";
 import { useUser } from "../../hooks/queries/useUser";
+import { usePatients } from "../../hooks/queries/usePatients";
+import { useSubscriptionInfo } from "../../hooks/queries/useSubscription";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { data: profile, isLoading } = useUser(true);
+  const { data: patients = [], isLoading: patientsLoading } = usePatients();
+  const { subscriptionInfo, subscriptionStatus, isLoading: subscriptionLoading } =
+    useSubscriptionInfo(true);
 
   const fullName = profile
     ? `${profile.firstName || ""} ${profile.lastName || ""}`.trim()
@@ -26,6 +31,52 @@ export default function ProfileScreen() {
     : "";
   const roleLabel =
     profile?.role || profile?.positionInPractice || profile?.practiceName || "";
+  const totalNotes = patients.reduce(
+    (sum, patient) => sum + (patient.noteCount || 0),
+    0,
+  );
+  const totalMatters = patients.length;
+  const notesUsed = subscriptionStatus?.notesUsed ?? 0;
+  const noteLimit = subscriptionStatus?.noteLimit ?? 12;
+  const usagePercentage =
+    noteLimit && noteLimit > 0 ? Math.min(100, (notesUsed / noteLimit) * 100) : 0;
+  const billingCycleText =
+    subscriptionStatus?.billingCycle === "weekly" ? "week" : "month";
+  const notesRemaining =
+    noteLimit === null ? null : Math.max(0, noteLimit - notesUsed);
+
+  const mostActivePatient = [...patients]
+    .sort((a, b) => (b.noteCount || 0) - (a.noteCount || 0))
+    .find((p) => (p.noteCount || 0) > 0);
+
+  const recentPatient = [...patients].sort(
+    (a, b) =>
+      new Date(b.lastModified || 0).getTime() - new Date(a.lastModified || 0).getTime(),
+  )[0];
+
+  const averageNotesPerMatter =
+    totalMatters > 0 ? Math.round((totalNotes / totalMatters) * 10) / 10 : 0;
+
+  const getPlanDescription = () => {
+    if (!subscriptionStatus) return "12 notes per month • PDF export only • Basic features";
+
+    const plan = subscriptionStatus.plan;
+    const cycle = subscriptionStatus.billingCycle;
+
+    switch (plan) {
+      case "Premium":
+        return cycle === "weekly"
+          ? "30 notes per week • PDF + Word export • Priority support"
+          : "120 notes per month • PDF + Word export • Priority support";
+      case "Gold":
+        return cycle === "weekly"
+          ? "100 notes per week • PDF + Word export • Premium features"
+          : "400 notes per month • PDF + Word export • Premium features";
+      case "Free":
+      default:
+        return "12 notes per month • PDF export only • Basic features";
+    }
+  };
 
   return (
     <ScrollView
@@ -65,36 +116,64 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>5</Text>
+              <Text style={styles.statValue}>
+                {patientsLoading || subscriptionLoading ? "..." : totalNotes}
+              </Text>
               <Text style={styles.statLabel}>Total Notes</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>2</Text>
+              <Text style={styles.statValue}>
+                {patientsLoading ? "..." : totalMatters}
+              </Text>
               <Text style={styles.statLabel}>Matters</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>8%</Text>
+              <Text style={styles.statValue}>
+                {subscriptionLoading ? "..." : `${Math.round(usagePercentage)}%`}
+              </Text>
               <Text style={styles.statLabel}>Plan Used</Text>
             </View>
           </View>
           <View style={styles.divider} />
           <View style={styles.usageRow}>
-            <Text style={styles.usageTitle}>Notes Used This Month</Text>
-            <Text style={styles.usageCount}>1 / 12</Text>
+            <Text style={styles.usageTitle}>
+              Notes Used This {billingCycleText === "week" ? "Week" : "Month"}
+            </Text>
+            <Text style={styles.usageCount}>
+              {subscriptionLoading ? "..." : `${notesUsed} / ${noteLimit ?? "∞"}`}
+            </Text>
           </View>
           <View style={styles.progressTrack}>
-            <View style={styles.progressFill} />
+            <View style={[styles.progressFill, { width: `${usagePercentage}%` }]} />
           </View>
-          <Text style={styles.usageHint}>11 notes remaining this month</Text>
-          <Text style={styles.usageSub}>Usage resets next month</Text>
+          <Text style={styles.usageHint}>
+            {subscriptionLoading
+              ? "Loading usage..."
+              : notesRemaining === null
+                ? "Unlimited notes remaining"
+                : `${notesRemaining} notes remaining this ${billingCycleText}`}
+          </Text>
+          <Text style={styles.usageSub}>
+            Usage resets next {billingCycleText === "week" ? "week" : "month"}
+          </Text>
         </View>
       </View>
 
       <View style={styles.cardWrapper}>
         <SubscriptionPlanCard
-          planName="Free Plan"
-          planTag="Free Plan"
-          details="12 notes per month • PDF export only • Basic features"
+          planName={
+            subscriptionLoading
+              ? "Loading plan..."
+              : `${subscriptionInfo.plan} Plan`
+          }
+          planTag={
+            subscriptionLoading
+              ? "Plan"
+              : subscriptionStatus?.isActive
+                ? "Active Subscription"
+                : `${subscriptionInfo.plan} Plan`
+          }
+          details={getPlanDescription()}
           onUpgrade={() => {}}
         />
       </View>
@@ -105,17 +184,24 @@ export default function ProfileScreen() {
             {
               icon: "stats-chart",
               color: COLORS.primary,
-              text: "You're using 1 of 12 notes on your Free plan (month)",
+              text: subscriptionLoading
+                ? "Loading subscription insights..."
+                : `You're using ${notesUsed} of ${noteLimit ?? "∞"} notes on your ${subscriptionInfo.plan} plan (${billingCycleText})`,
             },
             {
               icon: "trending-up",
               color: COLORS.warning,
-              text: "You've been most active with Administrative Law cases",
+              text: mostActivePatient
+                ? `You've been most active with ${mostActivePatient.name || "this patient"}`
+                : "Start creating notes to unlock activity insights",
             },
             {
               icon: "time",
               color: COLORS.info,
-              text: "You've created an average of 2.5 notes per matter",
+              text:
+                totalMatters > 0
+                  ? `You've created an average of ${averageNotesPerMatter} notes per matter`
+                  : "No matters yet. Add your first patient to get started.",
             },
           ]}
         />
@@ -123,8 +209,12 @@ export default function ProfileScreen() {
 
       <View style={styles.cardWrapper}>
         <RecentActivityCard
-          name="Furkan"
-          subtitle="Administrative Law • Today • 5 notes"
+          name={recentPatient?.name || "No recent activity"}
+          subtitle={
+            recentPatient
+              ? `${new Date(recentPatient.lastModified).toLocaleDateString()} • ${recentPatient.noteCount || 0} notes`
+              : "Your recent patient activity will appear here"
+          }
         />
       </View>
     </ScrollView>

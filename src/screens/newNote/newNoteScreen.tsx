@@ -23,6 +23,7 @@ import type { PatientsStackParamList } from "../../types/navigation";
 import { useAuth } from "../../hooks/useAuth";
 import { useStreamingAudioUpload } from "../../hooks/useStreamingAudioUpload";
 import { useCreateNote } from "../../hooks/mutations/useCreateNote";
+import { useAutoMedicalHistorySync } from "../../hooks/mutations/useAutoMedicalHistorySync";
 import RichTextEditor from "../../components/common/RichTextEditor";
 import ConsultationTemplatePopup from "./components/ConsultationTemplatePopup";
 import VoiceRecord from "./components/VoiceRecord";
@@ -75,6 +76,7 @@ export default function NewNoteScreen() {
     route.params;
   const { user } = useAuth();
   const createNote = useCreateNote();
+  const autoMedicalHistorySync = useAutoMedicalHistorySync();
 
   const practitionerName = user?.displayName || user?.email || "Practitioner";
 
@@ -160,6 +162,17 @@ export default function NewNoteScreen() {
         type: consultationType,
       })
       .then(() => {
+        autoMedicalHistorySync.mutate(
+          { patientId },
+          {
+            onError: (error) => {
+              console.log(
+                "[MedicalHistorySync] Auto sync after new note save failed:",
+                error,
+              );
+            },
+          },
+        );
         Alert.alert("Saved", "Your note has been saved.");
         navigation.goBack();
       })

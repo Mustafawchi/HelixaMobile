@@ -6,6 +6,7 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
+    "ios:device": "expo run:ios --device",
     "web": "expo start --web"
   },
   "dependencies": {
@@ -18,6 +19,7 @@
     "axios": "^1.13.4",
     "expo": "~54.0.32",
     "expo-av": "~16.0.8",
+    "expo-clipboard": "~8.0.8",
     "expo-file-system": "~19.0.21",
     "expo-local-authentication": "~17.0.8",
     "expo-print": "~15.0.8",

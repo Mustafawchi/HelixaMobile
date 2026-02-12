@@ -4,6 +4,8 @@ import type {
   GeneratePatientLetterResponse,
   GenerateReferralLetterRequest,
   GenerateReferralLetterResponse,
+  GenerateSummaryRequest,
+  GenerateSummaryResponse,
 } from "../../types/generate";
 
 export const generateApi = {
@@ -46,6 +48,26 @@ export const generateApi = {
       throw new Error(
         response.data.error || "Failed to generate referral letter",
       );
+    }
+
+    return response.data;
+  },
+
+  /**
+   * Generate a smart summary for selected notes.
+   * Uses audio processing service (same base as other generate endpoints).
+   */
+  smartSummary: async (
+    params: GenerateSummaryRequest,
+  ): Promise<GenerateSummaryResponse> => {
+    const response = await apiClient.post<GenerateSummaryResponse>(
+      "/generate-summary",
+      params,
+      { timeout: 60000 },
+    );
+
+    if (!response.data?.summary) {
+      throw new Error("Failed to generate smart summary");
     }
 
     return response.data;

@@ -54,6 +54,9 @@ export interface UpdatePatientRequest {
   dateOfBirth?: string;
   email?: string;
   homeAddress?: string;
+  medicalHistorySummary?: string;
+  medicalHistoryLastUpdated?: string;
+  medicalHistoryLastNoteId?: string;
 }
 
 export interface UpdatePatientResponse {

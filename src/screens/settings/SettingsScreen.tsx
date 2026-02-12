@@ -1,52 +1,18 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Switch,
-  Alert,
-} from "react-native";
+import React from "react";
+import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS, spacing, typography, borderRadius } from "../../theme";
+import BiometricSetting from "./components/BiometricSetting";
+import ChangePassword from "./components/ChangePassword";
+import TwoFactorAuth from "./components/TwoFactorAuth";
 import { useBiometric } from "../../context/BiometricContext";
+import { useLogout } from "../../hooks/mutations/useLogin";
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const {
-    biometricEnabled,
-    biometricAvailable,
-    biometryType,
-    toggleBiometric,
-  } = useBiometric();
-  const [togglingBiometric, setTogglingBiometric] = useState(false);
-
-  const biometricLabel =
-    biometryType === "face"
-      ? "Face ID"
-      : biometryType === "fingerprint"
-        ? "Touch ID"
-        : "Biometric Lock";
-
-  const biometricIcon =
-    biometryType === "fingerprint" ? "finger-print" : "lock-closed";
-
-  const handleToggleBiometric = async () => {
-    setTogglingBiometric(true);
-    try {
-      const success = await toggleBiometric();
-      if (!success && !biometricEnabled) {
-        Alert.alert(
-          "Biometric Unavailable",
-          "Please make sure biometric authentication is set up on your device.",
-        );
-      }
-    } finally {
-      setTogglingBiometric(false);
-    }
-  };
+  const { biometricAvailable } = useBiometric();
+  const logout = useLogout();
 
   return (
     <ScrollView
@@ -59,69 +25,21 @@ export default function SettingsScreen() {
         <Text style={styles.subtitle}>Customize your legal practice tools</Text>
       </View>
 
+      <Text style={styles.sectionTitle}>Security</Text>
       <View style={styles.card}>
-        <Pressable style={styles.row}>
-          <View style={styles.iconCircle}>
-            <Ionicons name="trash" size={18} color={COLORS.error} />
-          </View>
-          <View style={styles.rowText}>
-            <Text style={styles.rowTitleDanger}>Clear All Data</Text>
-            <Text style={styles.rowSubtitle}>
-              Remove all data from device and cloud
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
-        </Pressable>
+        <ChangePassword />
 
         <View style={styles.divider} />
 
-        <Pressable style={styles.row}>
-          <View style={styles.iconCircle}>
-            <Ionicons name="person-remove" size={18} color={COLORS.error} />
-          </View>
-          <View style={styles.rowText}>
-            <Text style={styles.rowTitleDanger}>Delete Account</Text>
-            <Text style={styles.rowSubtitle}>
-              Permanently delete your account and all data
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
-        </Pressable>
+        {biometricAvailable && (
+          <>
+            <BiometricSetting />
+            <View style={styles.divider} />
+          </>
+        )}
+
+        <TwoFactorAuth />
       </View>
-
-      {biometricAvailable && (
-        <>
-          <Text style={styles.sectionTitle}>Security</Text>
-          <View style={styles.card}>
-            <View style={styles.row}>
-              <View style={styles.iconCircle}>
-                <Ionicons
-                  name={biometricIcon}
-                  size={18}
-                  color={COLORS.primary}
-                />
-              </View>
-              <View style={styles.rowText}>
-                <Text style={styles.rowTitle}>{biometricLabel}</Text>
-                <Text style={styles.rowSubtitle}>
-                  Require {biometricLabel} when opening the app
-                </Text>
-              </View>
-              <Switch
-                value={biometricEnabled}
-                onValueChange={handleToggleBiometric}
-                disabled={togglingBiometric}
-                trackColor={{
-                  false: COLORS.border,
-                  true: COLORS.primaryLight,
-                }}
-                thumbColor={biometricEnabled ? COLORS.primary : COLORS.white}
-              />
-            </View>
-          </View>
-        </>
-      )}
-
       <Text style={styles.sectionTitle}>Support & Legal</Text>
       <View style={styles.card}>
         <Pressable style={styles.row}>
@@ -168,6 +86,37 @@ export default function SettingsScreen() {
         </Pressable>
       </View>
 
+      <Text style={styles.sectionTitle}>Data Management</Text>
+      <View style={styles.card}>
+        <Pressable style={styles.row}>
+          <View style={styles.iconCircle}>
+            <Ionicons name="trash" size={18} color={COLORS.error} />
+          </View>
+          <View style={styles.rowText}>
+            <Text style={styles.rowTitleDanger}>Clear All Data</Text>
+            <Text style={styles.rowSubtitle}>
+              Remove all data from device and cloud
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+        </Pressable>
+
+        <View style={styles.divider} />
+
+        <Pressable style={styles.row}>
+          <View style={styles.iconCircle}>
+            <Ionicons name="person-remove" size={18} color={COLORS.error} />
+          </View>
+          <View style={styles.rowText}>
+            <Text style={styles.rowTitleDanger}>Delete Account</Text>
+            <Text style={styles.rowSubtitle}>
+              Permanently delete your account and all data
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+        </Pressable>
+      </View>
+
       <Text style={styles.linkText}>Apple's End User License Agreement</Text>
 
       <View style={styles.card}>
@@ -186,9 +135,18 @@ export default function SettingsScreen() {
         </View>
       </View>
 
-      <Pressable style={styles.signOutButton}>
+      <Pressable
+        style={[
+          styles.signOutButton,
+          logout.isPending && styles.buttonDisabled,
+        ]}
+        onPress={() => logout.mutate()}
+        disabled={logout.isPending}
+      >
         <Ionicons name="log-out" size={18} color={COLORS.white} />
-        <Text style={styles.signOutText}>Sign Out</Text>
+        <Text style={styles.signOutText}>
+          {logout.isPending ? "Signing Out..." : "Sign Out"}
+        </Text>
       </Pressable>
     </ScrollView>
   );
@@ -289,6 +247,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: spacing.sm,
     marginTop: spacing.xs,
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
   signOutText: {
     color: COLORS.white,

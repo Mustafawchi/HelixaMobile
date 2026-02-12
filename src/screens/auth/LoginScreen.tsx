@@ -13,7 +13,10 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, spacing, borderRadius } from "../../theme";
-import { useSendLoginCode, useVerifyLoginCode } from "../../hooks/mutations/useLogin";
+import {
+  useSendLoginCode,
+  useVerifyLoginCode,
+} from "../../hooks/mutations/useLogin";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -122,67 +125,95 @@ export default function LoginScreen() {
                 ? "Enter the code sent to your email"
                 : "Enter your email to receive a login code"}
           </Text>
+          {codeSent && twoFactorRequired && (
+            <Text style={styles.verificationEmail}>{email}</Text>
+          )}
 
           {codeSent ? (
             <>
-              {/* Back Button */}
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={handleBack}
-                disabled={loading}
-              >
-                <Ionicons
-                  name="arrow-back"
-                  size={20}
-                  color={COLORS.textSecondary}
-                />
-                <Text style={styles.backButtonText}>Back</Text>
-              </TouchableOpacity>
+              {twoFactorRequired ? (
+                <>
+                  <View style={styles.verificationHeader}>
+                    <View style={styles.verificationIcon}>
+                      <Ionicons name="key" size={28} color={COLORS.primary} />
+                    </View>
+                  </View>
 
-              {/* Code Input */}
-              <View style={styles.inputWrapper}>
-                <Ionicons
-                  name="key-outline"
-                  size={20}
-                  color={COLORS.textMuted}
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  ref={codeInputRef}
-                  style={[styles.input, styles.codeInput]}
-                  placeholder="000000"
-                  placeholderTextColor={COLORS.textMuted}
-                  value={code}
-                  onChangeText={(val) => setCode(val.replace(/\D/g, "").slice(0, 6))}
-                  keyboardType="number-pad"
-                  maxLength={6}
-                  editable={!loading}
-                />
-              </View>
+                  <Text style={styles.fieldLabel}>Email Verification Code</Text>
+                  <View style={styles.inputWrapper}>
+                    <Ionicons
+                      name="mail-outline"
+                      size={20}
+                      color={COLORS.textMuted}
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      ref={codeInputRef}
+                      style={[styles.input, styles.codeInput]}
+                      placeholder="000000"
+                      placeholderTextColor={COLORS.textMuted}
+                      value={code}
+                      onChangeText={(val) =>
+                        setCode(val.replace(/\D/g, "").slice(0, 6))
+                      }
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      editable={!loading}
+                    />
+                  </View>
 
-              {/* 2FA Input */}
-              {twoFactorRequired && (
-                <View style={styles.inputWrapper}>
-                  <Ionicons
-                    name="shield-checkmark-outline"
-                    size={20}
-                    color={COLORS.textMuted}
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    ref={twoFactorInputRef}
-                    style={[styles.input, styles.codeInput]}
-                    placeholder="Authenticator Code"
-                    placeholderTextColor={COLORS.textMuted}
-                    value={twoFactorCode}
-                    onChangeText={(val) =>
-                      setTwoFactorCode(val.replace(/\D/g, "").slice(0, 6))
-                    }
-                    keyboardType="number-pad"
-                    maxLength={6}
-                    editable={!loading}
-                  />
-                </View>
+                  <Text style={styles.fieldLabel}>
+                    Google Authenticator Code
+                  </Text>
+                  <View
+                    style={[styles.inputWrapper, styles.inputWrapperAccent]}
+                  >
+                    <Ionicons
+                      name="shield-checkmark-outline"
+                      size={20}
+                      color={COLORS.textMuted}
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      ref={twoFactorInputRef}
+                      style={[styles.input, styles.codeInput]}
+                      placeholder="000000"
+                      placeholderTextColor={COLORS.textMuted}
+                      value={twoFactorCode}
+                      onChangeText={(val) =>
+                        setTwoFactorCode(val.replace(/\D/g, "").slice(0, 6))
+                      }
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      editable={!loading}
+                    />
+                  </View>
+                </>
+              ) : (
+                <>
+                  {/* Code Input */}
+                  <View style={styles.inputWrapper}>
+                    <Ionicons
+                      name="key-outline"
+                      size={20}
+                      color={COLORS.textMuted}
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      ref={codeInputRef}
+                      style={[styles.input, styles.codeInput]}
+                      placeholder="000000"
+                      placeholderTextColor={COLORS.textMuted}
+                      value={code}
+                      onChangeText={(val) =>
+                        setCode(val.replace(/\D/g, "").slice(0, 6))
+                      }
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      editable={!loading}
+                    />
+                  </View>
+                </>
               )}
 
               {/* Verify Button */}
@@ -359,7 +390,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: COLORS.textSecondary,
     textAlign: "center",
-    marginBottom: 32,
   },
   // ---- Input ----
   inputWrapper: {
@@ -373,6 +403,9 @@ const styles = StyleSheet.create({
     height: 54,
     marginBottom: 16,
   },
+  inputWrapperAccent: {
+    borderColor: COLORS.primary,
+  },
   inputIcon: {
     marginRight: 12,
   },
@@ -382,10 +415,35 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
   },
   codeInput: {
-    letterSpacing: 6,
+    letterSpacing: 8,
     textAlign: "center",
     fontSize: 22,
     fontWeight: "600",
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.textSecondary,
+    marginBottom: 6,
+  },
+  verificationHeader: {
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  verificationIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: COLORS.surfaceSecondary,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 12,
+  },
+  verificationEmail: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: COLORS.primary,
+    textAlign: "center",
   },
   // ---- Button ----
   button: {

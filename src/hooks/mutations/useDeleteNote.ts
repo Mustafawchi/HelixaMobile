@@ -53,6 +53,9 @@ export const useDeleteNote = () => {
       queryClient.invalidateQueries({
         queryKey: ["notes", "list", params.patientId],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["notes", "search", params.patientId],
+      });
       queryClient.invalidateQueries({ queryKey: ["patients"] });
     },
   });

@@ -201,6 +201,7 @@ export default function MainScreen() {
   }, [refetch]);
 
   const listFooter = useCallback(() => {
+    if (search.trim().length > 0) return null;
     if (!hasNextPage && !isFetchingNextPage) return null;
     return (
       <View style={styles.footer}>
@@ -214,7 +215,7 @@ export default function MainScreen() {
         )}
       </View>
     );
-  }, [hasNextPage, isFetchingNextPage]);
+  }, [hasNextPage, isFetchingNextPage, search]);
 
   return (
     <GestureHandlerRootView style={styles.container}>

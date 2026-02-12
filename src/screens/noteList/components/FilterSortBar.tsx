@@ -6,12 +6,14 @@ import { spacing, borderRadius } from "../../../theme";
 import AppPopup from "../../../components/common/AppPopup";
 
 const NOTE_TYPES = [
-  { value: "all", label: "All Types" },
-  { value: "comprehensive_examination", label: "Comprehensive Examination" },
-  { value: "emergency_visit", label: "Emergency Visit" },
-  { value: "orthodontics", label: "Orthodontics" },
-  { value: "aesthetics", label: "Aesthetics" },
-  { value: "wisdom_tooth", label: "Wisdom Tooth Consultation" },
+  { value: "all", label: "All Types", short: "All" },
+  { value: "Comprehensive Examination", label: "Comprehensive Examination", short: "Comp. Exam" },
+  { value: "Emergency Visit", label: "Emergency Visit", short: "Emergency" },
+  { value: "Orthodontics", label: "Orthodontics", short: "Ortho" },
+  { value: "Aesthetics", label: "Aesthetics", short: "Aesthetics" },
+  { value: "Wisdom Tooth Consultation", label: "Wisdom Tooth Consultation", short: "Wisdom Tooth" },
+  { value: "Patient Consultation", label: "Patient Consultation", short: "Patient" },
+  { value: "Other", label: "Other", short: "Other" },
 ] as const;
 
 export type NoteTypeValue = (typeof NOTE_TYPES)[number]["value"];
@@ -29,7 +31,8 @@ export default function FilterSortBar({
 }: FilterSortBarProps) {
   const [showFilterPopup, setShowFilterPopup] = useState(false);
 
-  const selectedLabel = NOTE_TYPES.find((t) => t.value === selectedFilter)?.label || "All Types";
+  const selectedType = NOTE_TYPES.find((t) => t.value === selectedFilter);
+  const selectedLabel = selectedType?.short || "All";
   const isFiltered = selectedFilter !== "all";
 
   const handleSelectFilter = (value: NoteTypeValue) => {
@@ -49,7 +52,10 @@ export default function FilterSortBar({
             size={20}
             color={isFiltered ? COLORS.primary : COLORS.textMuted}
           />
-          <Text style={[styles.text, isFiltered && styles.textActive]}>
+          <Text
+            style={[styles.text, isFiltered && styles.textActive]}
+            numberOfLines={1}
+          >
             {isFiltered ? selectedLabel : "Filter"}
           </Text>
           {isFiltered && (
@@ -118,7 +124,8 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     backgroundColor: COLORS.surface,
     borderRadius: borderRadius.lg,
-    height: 40,
+    height: 44,
+    paddingHorizontal: spacing.sm,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },

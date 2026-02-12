@@ -12,7 +12,7 @@ export default function SummaryAction({ onPress }: SummaryActionProps) {
   return (
     <View style={styles.container}>
       <TouchableOpacity style={styles.button} onPress={onPress}>
-        <Ionicons name="sparkles-outline" size={16} color={COLORS.textMuted} />
+        <Ionicons name="sparkles-outline" size={16} color={COLORS.gold} />
         <Text style={styles.text}>Smart Summary</Text>
       </TouchableOpacity>
     </View>
@@ -29,15 +29,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.xs,
-    backgroundColor: COLORS.surface,
+    backgroundColor: "transparent",
     borderRadius: borderRadius.lg,
     height: 40,
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
+    borderColor: COLORS.gold,
   },
   text: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: COLORS.gold,
     fontWeight: "600",
   },
 });

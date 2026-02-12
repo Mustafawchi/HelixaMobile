@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Keyboard,
   Platform,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -29,6 +30,8 @@ import EmailBodyEditor from "../components/EmailBodyEditor";
 import PdfAttachmentEditor from "../components/PdfAttachmentEditor";
 import RichTextEditor from "../../../components/common/RichTextEditor";
 import { usePdfExport } from "../../../hooks/usePdfExport";
+import { useWordExport } from "../../../hooks/useWordExport";
+import { composeAndOpenEmail, htmlToPlainText } from "../../../utils/email";
 
 type ReferPatientRoute = RouteProp<PatientsStackParamList, "ReferPatient">;
 
@@ -77,11 +80,13 @@ export default function ReferPatientScreen() {
     }
     return DEFAULT_EMAIL_BODY_HTML;
   });
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const focusedEditorY = useRef(0);
   const editorPositions = useRef<Record<string, number>>({});
   const { exportPdf, isExporting } = usePdfExport();
+  const { exportLetterWord, isExportingWord } = useWordExport();
 
   const handleBack = useCallback(() => {
     navigation.goBack();
@@ -93,6 +98,35 @@ export default function ReferPatientScreen() {
       scrollRef.current?.scrollTo({ y: focusedEditorY.current, animated: true });
     }
   }, [isKeyboardVisible]);
+
+  const handleSendEmail = useCallback(async () => {
+    if (isSendingEmail) return;
+
+    const recipient = (doctorEmail || patientEmail || "").trim();
+    if (!recipient) {
+      Alert.alert(
+        "Missing Email",
+        "No recipient email found. Please add an email address first.",
+      );
+      return;
+    }
+
+    try {
+      setIsSendingEmail(true);
+      await composeAndOpenEmail({
+        to: recipient,
+        subject: emailSubject,
+        body: htmlToPlainText(emailBody),
+      });
+    } catch (error: any) {
+      Alert.alert(
+        "Email Error",
+        error?.message || "Unable to open an email application.",
+      );
+    } finally {
+      setIsSendingEmail(false);
+    }
+  }, [isSendingEmail, doctorEmail, patientEmail, emailSubject, emailBody]);
 
   useEffect(() => {
     const showEvent =
@@ -240,19 +274,51 @@ export default function ReferPatientScreen() {
                     {isExporting ? "Exporting..." : "Export PDF"}
                   </Text>
                 </Pressable>
-                <Pressable style={styles.wordButton} onPress={() => {}}>
+                <Pressable
+                  style={[styles.wordButton, isExportingWord && { opacity: 0.6 }]}
+                  onPress={() =>
+                    exportLetterWord(
+                      {
+                        id: `referral-${Date.now()}`,
+                        title: `Referral_${patientName}`,
+                        text: letterContent,
+                        type: "Referral",
+                        createdAt: new Date().toISOString(),
+                        lastEdited: new Date().toISOString(),
+                      },
+                      {
+                        folderName: patientName,
+                        folderType: "Referral",
+                      },
+                      `Referral_${patientName}_${new Date()
+                        .toISOString()
+                        .slice(0, 10)}`,
+                    )
+                  }
+                  disabled={isExportingWord}
+                >
                   <Ionicons
                     name="document-text-outline"
                     size={16}
                     color={COLORS.white}
                   />
-                  <Text style={styles.buttonText}>Export Word</Text>
+                  <Text style={styles.buttonText}>
+                    {isExportingWord ? "Exporting..." : "Export Word"}
+                  </Text>
                 </Pressable>
               </View>
             ) : (
-              <Pressable style={styles.sendEmailButton} onPress={() => {}}>
+              <Pressable
+                style={[styles.sendEmailButton, isSendingEmail && { opacity: 0.6 }]}
+                onPress={() => {
+                  void handleSendEmail();
+                }}
+                disabled={isSendingEmail}
+              >
                 <Ionicons name="send-outline" size={16} color={COLORS.white} />
-                <Text style={styles.buttonText}>Send Email</Text>
+                <Text style={styles.buttonText}>
+                  {isSendingEmail ? "Opening..." : "Send Email"}
+                </Text>
               </Pressable>
             )}
             <Pressable style={styles.cancelButton} onPress={handleBack}>

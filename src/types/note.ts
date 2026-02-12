@@ -36,6 +36,18 @@ export interface GetPatientNotesResponse {
   patientDetails?: PatientDetails;
 }
 
+export interface SearchNotesRequest {
+  patientId: string;
+  searchQuery: string;
+  limit?: number;
+}
+
+export interface SearchNotesResponse {
+  success: boolean;
+  notes: Note[];
+  count: number;
+}
+
 // Create Note
 export interface CreateNoteRequest {
   patientId: string;

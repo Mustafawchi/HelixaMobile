@@ -33,6 +33,15 @@ export const useUpdatePatient = () => {
         ...(updated.homeAddress !== undefined && {
           homeAddress: updated.homeAddress,
         }),
+        ...(updated.medicalHistorySummary !== undefined && {
+          medicalHistorySummary: updated.medicalHistorySummary,
+        }),
+        ...(updated.medicalHistoryLastUpdated !== undefined && {
+          medicalHistoryLastUpdated: updated.medicalHistoryLastUpdated,
+        }),
+        ...(updated.medicalHistoryLastNoteId !== undefined && {
+          medicalHistoryLastNoteId: updated.medicalHistoryLastNoteId,
+        }),
         lastModified: new Date().toISOString(),
       };
 
