@@ -151,7 +151,7 @@ function RichTextEditor(
         showsVerticalScrollIndicator
         showsHorizontalScrollIndicator={false}
         keyboardDisplayRequiresUserAction
-        hideKeyboardAccessoryView
+        hideKeyboardAccessoryView={false}
         automaticallyAdjustContentInsets={false}
       />
     </View>

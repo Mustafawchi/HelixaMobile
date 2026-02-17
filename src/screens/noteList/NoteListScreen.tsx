@@ -111,7 +111,7 @@ export default function NoteListScreen() {
   const generateSmartSummary = useGenerateSmartSummary();
   const autoMedicalHistorySync = useAutoMedicalHistorySync();
   const { data: userProfile } = useUser();
-  const { exportPdf, isExporting } = usePdfExport();
+  const { exportPdfViaServer, isServerExporting } = usePdfExport();
   const { exportMultipleWord, isExportingWord } = useWordExport();
   const [showCreatePopup, setShowCreatePopup] = useState(false);
   const [filterType, setFilterType] = useState<NoteTypeValue>("all");
@@ -393,8 +393,8 @@ export default function NoteListScreen() {
     const selectedNotes = allNotes.filter((n) => selectedIds.has(n.id));
     if (selectedNotes.length === 0) return;
     const html = buildNotesContentHtml(selectedNotes);
-    exportPdf(html, `${patientName}_Notes`, { includeSignature: false });
-  }, [allNotes, selectedIds, patientName, exportPdf]);
+    exportPdfViaServer(html, `${patientName}_Notes`, { includeSignature: false });
+  }, [allNotes, selectedIds, patientName, exportPdfViaServer]);
 
   const handleBatchWord = useCallback(() => {
     const selectedNotes = allNotes.filter((n) => selectedIds.has(n.id));
@@ -515,9 +515,10 @@ export default function NoteListScreen() {
 
   const loadingOverlayText = useMemo(() => {
     if (isGenerating) return "Generating...";
+    if (isServerExporting) return "Exporting PDF...";
     if (isExportingWord) return "Exporting Word...";
     return "";
-  }, [isGenerating, isExportingWord]);
+  }, [isGenerating, isServerExporting, isExportingWord]);
 
   const isGlobalLoadingVisible = isGenerating || isExportingWord;
 

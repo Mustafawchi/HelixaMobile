@@ -20,6 +20,8 @@ import type { PatientsStackParamList } from "../../types/navigation";
 import { usePdfExport } from "../../hooks/usePdfExport";
 import { useWordExport } from "../../hooks/useWordExport";
 import { htmlToPlainText } from "../../utils/email";
+import ExportPdfButton from "../../components/common/ExportPdfButton";
+import ExportWordButton from "../../components/common/ExportWordButton";
 
 type SmartSummaryRoute = RouteProp<PatientsStackParamList, "SmartSummary">;
 
@@ -220,37 +222,20 @@ export default function SmartSummaryScreen() {
       <View
         style={[
           styles.footer,
-          { paddingBottom: Math.max(4, (insets.bottom || spacing.sm) - 12) },
+          { paddingTop: spacing.xs, paddingBottom: spacing.xs },
         ]}
       >
         <View style={styles.actionsRow}>
-          <Pressable
-            style={[styles.secondaryButton, isExporting && { opacity: 0.6 }]}
+          <ExportPdfButton
             onPress={handleExportPdf}
-            disabled={isExporting}
-          >
-            <Ionicons
-              name="document-text-outline"
-              size={18}
-              color={COLORS.pdf}
-            />
-            <Text style={[styles.secondaryButtonText, { color: COLORS.pdf }]}>
-              {isExporting ? "Exporting..." : "Export PDF"}
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[
-              styles.secondaryButton,
-              isExportingWord && { opacity: 0.6 },
-            ]}
+            isExporting={isExporting}
+            variant="outlined"
+          />
+          <ExportWordButton
             onPress={handleExportWord}
-            disabled={isExportingWord}
-          >
-            <Ionicons name="document-outline" size={18} color={COLORS.word} />
-            <Text style={[styles.secondaryButtonText, { color: COLORS.word }]}>
-              {isExportingWord ? "Exporting..." : "Export Word"}
-            </Text>
-          </Pressable>
+            isExporting={isExportingWord}
+            variant="outlined"
+          />
         </View>
       </View>
     </View>
@@ -368,28 +353,12 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     borderTopWidth: 0,
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
-    gap: spacing.sm,
+    paddingTop: spacing.xs,
+    gap: spacing.xs,
   },
   actionsRow: {
     flexDirection: "row",
     gap: spacing.sm,
-  },
-  secondaryButton: {
-    flex: 1,
-    height: 48,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.surface,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-  },
-  secondaryButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
   },
   closeButton: {
     alignSelf: "flex-end",

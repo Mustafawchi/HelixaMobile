@@ -7,13 +7,17 @@ import SubscriptionPlanCard from "./components/SubscriptionPlanCard";
 import InsightsCard from "./components/InsightsCard";
 import RecentActivityCard from "./components/RecentActivityCard";
 import { useUser } from "../../hooks/queries/useUser";
-import { usePatients } from "../../hooks/queries/usePatients";
+import { usePaginatedPatients } from "../../hooks/queries/usePatients";
 import { useSubscriptionInfo } from "../../hooks/queries/useSubscription";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { data: profile, isLoading } = useUser(true);
-  const { data: patients = [], isLoading: patientsLoading } = usePatients();
+  const { data: paginatedData, isLoading: patientsLoading } = usePaginatedPatients();
+  const firstPage = paginatedData?.pages?.[0];
+  const patients = firstPage?.patients ?? [];
+  const totalMattersCount = firstPage?.totalCount ?? 0;
+  const totalNotesCount = firstPage?.totalNotes ?? 0;
   const { subscriptionInfo, subscriptionStatus, isLoading: subscriptionLoading } =
     useSubscriptionInfo(true);
 
@@ -31,11 +35,8 @@ export default function ProfileScreen() {
     : "";
   const roleLabel =
     profile?.role || profile?.positionInPractice || profile?.practiceName || "";
-  const totalNotes = patients.reduce(
-    (sum, patient) => sum + (patient.noteCount || 0),
-    0,
-  );
-  const totalMatters = patients.length;
+  const totalNotes = totalNotesCount;
+  const totalMatters = totalMattersCount;
   const notesUsed = subscriptionStatus?.notesUsed ?? 0;
   const noteLimit = subscriptionStatus?.noteLimit ?? 12;
   const usagePercentage =
@@ -125,7 +126,7 @@ export default function ProfileScreen() {
               <Text style={styles.statValue}>
                 {patientsLoading ? "..." : totalMatters}
               </Text>
-              <Text style={styles.statLabel}>Matters</Text>
+              <Text style={styles.statLabel}>Patients</Text>
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>

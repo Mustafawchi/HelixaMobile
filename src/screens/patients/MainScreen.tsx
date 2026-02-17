@@ -75,8 +75,10 @@ export default function MainScreen() {
   }, [data, sortKey]);
 
   const totalNotes = useMemo(() => {
+    const backendTotal = data?.pages?.[0]?.totalNotes;
+    if (backendTotal !== undefined) return backendTotal;
     return patients.reduce((sum, p) => sum + p.noteCount, 0);
-  }, [patients]);
+  }, [data, patients]);
 
   const handlePatientPress = useCallback(
     (patient: Patient) => {

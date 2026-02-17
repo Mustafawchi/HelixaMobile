@@ -32,6 +32,7 @@ export interface GetPatientsListPaginatedResponse {
   success: boolean;
   patients: Patient[];
   totalCount: number;
+  totalNotes: number;
   hasMore: boolean;
   lastDocId: string | null;
 }

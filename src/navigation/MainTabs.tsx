@@ -1,9 +1,10 @@
 import React from 'react';
-import { StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import PatientsStack from './PatientsStack';
 import ProfileScreen from '../screens/profile/ProfileScreen';
+import AskHelixaScreen from '../screens/askHelixa/AskHelixaScreen';
 import SettingsScreen from '../screens/settings/SettingsScreen';
 import type { MainTabParamList } from '../types/navigation';
 import { COLORS } from '../types/colors';
@@ -29,6 +30,20 @@ export default function MainTabs() {
           tabBarIcon: ({ focused, color }) => (
             <Ionicons
               name={focused ? 'home' : 'home-outline'}
+              size={22}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="AskHelixa"
+        component={AskHelixaScreen}
+        options={{
+          tabBarLabel: 'Helixa',
+          tabBarIcon: ({ focused, color }) => (
+            <Ionicons
+              name={focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline'}
               size={22}
               color={color}
             />

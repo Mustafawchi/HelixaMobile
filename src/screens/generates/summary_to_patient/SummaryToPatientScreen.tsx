@@ -32,6 +32,8 @@ import RichTextEditor from "../../../components/common/RichTextEditor";
 import { usePdfExport } from "../../../hooks/usePdfExport";
 import { useWordExport } from "../../../hooks/useWordExport";
 import { composeAndOpenEmail, htmlToPlainText } from "../../../utils/email";
+import ExportPdfButton from "../../../components/common/ExportPdfButton";
+import ExportWordButton from "../../../components/common/ExportWordButton";
 
 type SummaryRoute = RouteProp<PatientsStackParamList, "SummaryToPatient">;
 
@@ -70,7 +72,7 @@ export default function SummaryToPatientScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const focusedEditorY = useRef(0);
   const editorPositions = useRef<Record<string, number>>({});
-  const { exportPdf, isExporting } = usePdfExport();
+  const { exportPdfViaServer, isServerExporting } = usePdfExport();
   const { exportLetterWord, isExportingWord } = useWordExport();
 
   const handleBack = useCallback(() => {
@@ -237,27 +239,19 @@ export default function SummaryToPatientScreen() {
           <View
             style={[
               styles.bottomBar,
-              { paddingBottom: insets.bottom || spacing.sm },
+              { paddingTop: spacing.xs, paddingBottom: spacing.xs },
             ]}
           >
             {activeTab === "document" ? (
               <View style={styles.buttonRow}>
-                <Pressable
-                  style={[styles.pdfButton, isExporting && { opacity: 0.6 }]}
-                  onPress={() => exportPdf(letterContent, `Summary_${patientName}`)}
-                  disabled={isExporting}
-                >
-                  <Ionicons
-                    name="document-outline"
-                    size={16}
-                    color={COLORS.white}
-                  />
-                  <Text style={styles.buttonText}>
-                    {isExporting ? "Exporting..." : "Export PDF"}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.wordButton, isExportingWord && { opacity: 0.6 }]}
+                <ExportPdfButton
+                  onPress={() =>
+                    exportPdfViaServer(letterContent, `Summary_${patientName}`)
+                  }
+                  isExporting={isServerExporting}
+                  variant="outlined"
+                />
+                <ExportWordButton
                   onPress={() =>
                     exportLetterWord(
                       {
@@ -277,17 +271,9 @@ export default function SummaryToPatientScreen() {
                         .slice(0, 10)}`,
                     )
                   }
-                  disabled={isExportingWord}
-                >
-                  <Ionicons
-                    name="document-text-outline"
-                    size={16}
-                    color={COLORS.white}
-                  />
-                  <Text style={styles.buttonText}>
-                    {isExportingWord ? "Exporting..." : "Export Word"}
-                  </Text>
-                </Pressable>
+                  isExporting={isExportingWord}
+                  variant="outlined"
+                />
               </View>
             ) : (
               <Pressable
@@ -297,15 +283,12 @@ export default function SummaryToPatientScreen() {
                 }}
                 disabled={isSendingEmail}
               >
-                <Ionicons name="send-outline" size={16} color={COLORS.white} />
+                <Ionicons name="send-outline" size={16} color={COLORS.primary} />
                 <Text style={styles.buttonText}>
                   {isSendingEmail ? "Opening..." : "Send Email"}
                 </Text>
               </Pressable>
             )}
-            <Pressable style={styles.cancelButton} onPress={handleBack}>
-              <Text style={styles.cancelText}>Cancel</Text>
-            </Pressable>
           </View>
         )}
       </KeyboardAvoidingView>
@@ -337,7 +320,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: spacing.md,
     gap: spacing.md,
-    paddingBottom: spacing.lg,
+    paddingBottom: spacing.sm,
   },
   editorSection: { gap: spacing.sm },
   sectionLabel: {
@@ -347,9 +330,9 @@ const styles = StyleSheet.create({
   },
   editorWrapper: { borderRadius: borderRadius.lg, overflow: "hidden" },
   bottomBar: {
-    paddingHorizontal: spacing.xs,
+    paddingHorizontal: spacing.md,
     paddingTop: spacing.xs,
-    gap: 4,
+    gap: spacing.xs,
     backgroundColor: COLORS.surface,
     shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: -4 },
@@ -358,58 +341,17 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   buttonRow: { flexDirection: "row", gap: spacing.sm },
-  pdfButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 13,
-    borderRadius: borderRadius.xl,
-    backgroundColor: COLORS.pdf,
-    shadowColor: COLORS.pdf,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  wordButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 13,
-    borderRadius: borderRadius.xl,
-    backgroundColor: COLORS.word,
-    shadowColor: COLORS.word,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
-  },
   sendEmailButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    paddingVertical: 13,
-    borderRadius: borderRadius.xl,
-    backgroundColor: COLORS.primary,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
-    marginTop: spacing.sm,
+    height: 48,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: "transparent",
+    marginTop: 0,
   },
-  buttonText: { fontSize: 14, fontWeight: "700", color: COLORS.white },
-  cancelButton: {
-    alignItems: "center",
-    paddingVertical: 10,
-    backgroundColor: COLORS.border,
-    borderRadius: borderRadius.xl,
-    marginTop: spacing.sm,
-  },
-  cancelText: { fontSize: 13, fontWeight: "600", color: COLORS.textSecondary },
+  buttonText: { fontSize: 14, fontWeight: "700", color: COLORS.primary },
 });

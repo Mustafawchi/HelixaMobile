@@ -1,4 +1,5 @@
 import { functionsApiClient } from "../client";
+import type { PdfSettings } from "../../types/user";
 
 export interface WordExportNote {
   id: string;
@@ -25,12 +26,19 @@ interface WordExportResponse {
   contentType: string;
 }
 
+interface PdfExportResponse {
+  base64: string;
+  filename: string;
+  contentType: string;
+}
+
 interface WordExportOptions {
   separateFiles?: boolean;
   documentType?: "notes" | "letter";
 }
 
 const WORD_EXPORT_ENDPOINT = "/generateDocx/generate-docx";
+const PDF_EXPORT_ENDPOINT = "/generatePdf/generate-pdf";
 
 const sanitizeFileName = (value: string): string =>
   value.replace(/[/\\:*?"<>|]/g, "-").replace(/\s+/g, "_");
@@ -128,6 +136,42 @@ const exportDocx = async (
   };
 };
 
+const exportPdf = async (
+  content: string,
+  pdfSettings: PdfSettings | undefined,
+  options: { includeSignature?: boolean } | undefined,
+  fallbackFileBaseName: string,
+): Promise<PdfExportResponse> => {
+  const response = await functionsApiClient.post<PdfExportResponse>(
+    PDF_EXPORT_ENDPOINT,
+    {
+      content,
+      pdfSettings,
+      options,
+      returnBase64: true,
+      filename: sanitizeFileName(fallbackFileBaseName),
+    },
+    {
+      timeout: 120000,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
+  const contentType =
+    response.data?.contentType ||
+    (response.headers["content-type"] as string | undefined) ||
+    "application/pdf";
+  const fallbackFilename = `${sanitizeFileName(fallbackFileBaseName)}.pdf`;
+
+  return {
+    base64: response.data?.base64 || "",
+    filename: response.data?.filename || fallbackFilename,
+    contentType,
+  };
+};
+
 export const exportApi = {
   exportSingleWord: async (
     note: WordExportNote,
@@ -167,5 +211,14 @@ export const exportApi = {
       { separateFiles: false, documentType: "letter" },
       fallbackFileBaseName,
     );
+  },
+
+  exportLetterPdf: async (
+    content: string,
+    pdfSettings: PdfSettings | undefined,
+    options: { includeSignature?: boolean } | undefined,
+    fallbackFileBaseName: string,
+  ): Promise<PdfExportResponse> => {
+    return exportPdf(content, pdfSettings, options, fallbackFileBaseName);
   },
 };

@@ -78,7 +78,7 @@ export default function NoteDetailScreen() {
           value={content}
           onChange={setContent}
           placeholder="Note content..."
-          minHeight={700}
+          minHeight={0}
         />
       </View>
 
@@ -128,6 +128,7 @@ const styles = StyleSheet.create({
   },
   editorWrapper: {
     flex: 1,
-    padding: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
   },
 });
