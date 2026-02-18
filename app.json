@@ -15,7 +15,14 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSFaceIDUsageDescription": "Helixa AI uses Face ID to protect your medical data."
+        "NSFaceIDUsageDescription": "Helixa AI uses Face ID to protect your medical data.",
+        "LSApplicationQueriesSchemes": [
+          "googlegmail",
+          "ms-outlook",
+          "ymail",
+          "readdle-spark",
+          "mailto"
+        ]
       },
       "bundleIdentifier": "com.fursakizci.HelixaAIMobile"
     },
@@ -42,7 +49,8 @@
         {
           "faceIDPermission": "Helixa AI uses Face ID to protect your medical data."
         }
-      ]
+      ],
+      "expo-mail-composer"
     ]
   }
 }

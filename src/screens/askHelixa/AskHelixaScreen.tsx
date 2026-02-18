@@ -11,6 +11,7 @@ import {
   Pressable,
   ActivityIndicator,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS } from "../../types/colors";
@@ -34,8 +35,11 @@ export default function AskHelixaScreen() {
   const insets = useSafeAreaInsets();
   const flatListRef = useRef<FlatList>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const sessionRestoredRef = useRef(false);
 
   const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
+  // undefined = AsyncStorage henüz okunmadı, null = kayıtlı session yok
+  const [savedSessionId, setSavedSessionId] = useState<string | null | undefined>(undefined);
   const [selectedPatient, setSelectedPatient] =
     useState<PatientOption>(GENERAL_CONTEXT);
   const [drawerVisible, setDrawerVisible] = useState(false);
@@ -205,6 +209,34 @@ export default function AskHelixaScreen() {
     prevSessionIdRef.current = null;
   }, []);
 
+  // Faz 1: Mount'ta AsyncStorage'dan son session ID'yi oku
+  useEffect(() => {
+    AsyncStorage.getItem("helixa_last_session_id").then((id) => {
+      setSavedSessionId(id ?? null);
+    });
+  }, []);
+
+  // Faz 2: Sessions ve savedSessionId hazır olunca son sohbeti restore et
+  useEffect(() => {
+    if (savedSessionId === undefined || sessions.length === 0 || activeSessionId) return;
+    if (sessionRestoredRef.current) return;
+
+    const sessionExists = savedSessionId && sessions.some((s) => s.id === savedSessionId);
+    const sessionToSelect = sessionExists ? savedSessionId : sessions[0].id;
+
+    sessionRestoredRef.current = true;
+    handleSelectSession(sessionToSelect);
+  }, [savedSessionId, sessions, activeSessionId, handleSelectSession]);
+
+  // activeSessionId değişince AsyncStorage'a kaydet
+  useEffect(() => {
+    if (activeSessionId) {
+      AsyncStorage.setItem("helixa_last_session_id", activeSessionId);
+    } else {
+      AsyncStorage.removeItem("helixa_last_session_id");
+    }
+  }, [activeSessionId]);
+
   const handleDeleteSession = useCallback(
     (sessionId: string) => {
       deleteChatSession.mutate(sessionId);
@@ -298,6 +330,8 @@ export default function AskHelixaScreen() {
           id: s.id,
           title: s.title,
           lastMessageAt: s.lastMessageAt,
+          patientId: s.patientId,
+          patientName: s.patientName,
         }))}
         activeSessionId={activeSessionId}
         onSelectSession={handleSelectSession}

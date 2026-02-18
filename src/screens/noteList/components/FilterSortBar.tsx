@@ -1,5 +1,11 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Pressable } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Pressable,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS } from "../../../types/colors";
 import { spacing, borderRadius } from "../../../theme";
@@ -7,12 +13,24 @@ import AppPopup from "../../../components/common/AppPopup";
 
 const NOTE_TYPES = [
   { value: "all", label: "All Types", short: "All" },
-  { value: "Comprehensive Examination", label: "Comprehensive Examination", short: "Comp. Exam" },
+  {
+    value: "Comprehensive Examination",
+    label: "Comprehensive Examination",
+    short: "Comp. Exam",
+  },
   { value: "Emergency Visit", label: "Emergency Visit", short: "Emergency" },
   { value: "Orthodontics", label: "Orthodontics", short: "Ortho" },
   { value: "Aesthetics", label: "Aesthetics", short: "Aesthetics" },
-  { value: "Wisdom Tooth Consultation", label: "Wisdom Tooth Consultation", short: "Wisdom Tooth" },
-  { value: "Patient Consultation", label: "Patient Consultation", short: "Patient" },
+  {
+    value: "Wisdom Tooth Consultation",
+    label: "Wisdom Tooth Consultation",
+    short: "Wisdom Tooth",
+  },
+  {
+    value: "Patient Consultation",
+    label: "Patient Consultation",
+    short: "Patient",
+  },
   { value: "Other", label: "Other", short: "Other" },
 ] as const;
 
@@ -158,7 +176,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: spacing.sm,
+    minHeight: 50,
+    paddingVertical: spacing.base,
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.md,
     backgroundColor: COLORS.surfaceSecondary,
@@ -169,7 +188,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
   },
   optionText: {
-    fontSize: 14,
+    fontSize: 15,
     color: COLORS.textPrimary,
   },
   optionTextSelected: {

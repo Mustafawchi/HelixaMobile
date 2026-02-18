@@ -31,7 +31,10 @@ import PdfAttachmentEditor from "../components/PdfAttachmentEditor";
 import RichTextEditor from "../../../components/common/RichTextEditor";
 import { usePdfExport } from "../../../hooks/usePdfExport";
 import { useWordExport } from "../../../hooks/useWordExport";
-import { composeAndOpenEmail, htmlToPlainText } from "../../../utils/email";
+import {
+  composeAndOpenEmailWithAttachment,
+  htmlToPlainText,
+} from "../../../utils/email";
 import ExportPdfButton from "../../../components/common/ExportPdfButton";
 import ExportWordButton from "../../../components/common/ExportWordButton";
 
@@ -87,7 +90,7 @@ export default function ReferPatientScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const focusedEditorY = useRef(0);
   const editorPositions = useRef<Record<string, number>>({});
-  const { exportPdf, isExporting } = usePdfExport();
+  const { exportPdf, createPdfFileViaServer, isExporting } = usePdfExport();
   const { exportLetterWord, isExportingWord } = useWordExport();
 
   const handleBack = useCallback(() => {
@@ -115,10 +118,15 @@ export default function ReferPatientScreen() {
 
     try {
       setIsSendingEmail(true);
-      await composeAndOpenEmail({
+      const attachmentUri = await createPdfFileViaServer(
+        letterContent,
+        `Referral_${patientName}_${new Date().toISOString().slice(0, 10)}`,
+      );
+      await composeAndOpenEmailWithAttachment({
         to: recipient,
         subject: emailSubject,
         body: htmlToPlainText(emailBody),
+        attachments: [attachmentUri],
       });
     } catch (error: any) {
       Alert.alert(
@@ -128,7 +136,16 @@ export default function ReferPatientScreen() {
     } finally {
       setIsSendingEmail(false);
     }
-  }, [isSendingEmail, doctorEmail, patientEmail, emailSubject, emailBody]);
+  }, [
+    isSendingEmail,
+    doctorEmail,
+    patientEmail,
+    emailSubject,
+    emailBody,
+    createPdfFileViaServer,
+    letterContent,
+    patientName,
+  ]);
 
   useEffect(() => {
     const showEvent =

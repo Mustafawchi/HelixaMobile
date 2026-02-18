@@ -129,23 +129,50 @@ function stripLeadingLabelBlocks(content: string, labels: string[]): string {
   return result.trim();
 }
 
+function sanitizePdfNoteContent(content: string): string {
+  let result = content || "";
+
+  // Remove explicit pagination markers that may come from copied/exported HTML.
+  result = result
+    .replace(/<div[^>]*class="[^"]*\bpage-break\b[^"]*"[^>]*>[\s\S]*?<\/div>/gi, "")
+    .replace(/<p[^>]*class="[^"]*\bpage-break\b[^"]*"[^>]*>[\s\S]*?<\/p>/gi, "")
+    .replace(/<div[^>]*class="[^"]*\bnote-page-break\b[^"]*"[^>]*>[\s\S]*?<\/div>/gi, "")
+    .replace(/<p[^>]*class="[^"]*\bnote-page-break\b[^"]*"[^>]*>[\s\S]*?<\/p>/gi, "");
+
+  // Remove empty nodes carrying forced page break styles.
+  result = result.replace(
+    /<(div|p|section)[^>]*style="[^"]*(?:page-break-before|page-break-after|break-before|break-after)\s*:\s*[^";]+[^"]*"[^>]*>\s*(?:&nbsp;|\u00A0|<br\s*\/?>|\s)*<\/\1>/gi,
+    "",
+  );
+
+  // Remove trailing empty paragraphs/breaks that can push an extra blank page.
+  result = result
+    .replace(/<p>\s*(?:&nbsp;|\u00A0|<br\s*\/?>|\s)*<\/p>\s*$/gi, "")
+    .replace(/(?:<br\s*\/?>\s*)+$/gi, "");
+
+  return result.trim() || "<p>No content</p>";
+}
+
 /**
  * Builds HTML content from an array of notes with page breaks.
  * NoteList export intentionally avoids repeating title/type labels because
  * those labels often already exist in note body ("Patient Note" template).
- */
+*/
 export function buildNotesContentHtml(notes: Note[], folderName?: string): string {
   const headerHtml = folderName ? `<h2>${folderName}</h2>` : "";
 
   const sections = notes
     .map((note, index) => {
-      const content = stripLeadingLabelBlocks(note.text || "<p>No content</p>", [
-        note.title || "",
-        note.type || "",
-        note.matter || "",
-      ]);
-      const pageBreak = index > 0 ? '<div class="page-break"></div>' : "";
-      return `${pageBreak}<div class="note-section"><div class="note-content">${content}</div></div>`;
+      const content = sanitizePdfNoteContent(
+        stripLeadingLabelBlocks(note.text || "<p>No content</p>", [
+          note.title || "",
+          note.type || "",
+          note.matter || "",
+        ]),
+      );
+      const pageStartStyle =
+        index > 0 ? ' style="break-before: page; page-break-before: always;"' : "";
+      return `<div class="note-section"${pageStartStyle}><div class="note-content">${content}</div></div>`;
     })
     .join("");
 
@@ -284,6 +311,7 @@ export function buildPdfHtml(
     li { margin-bottom: 0; line-height: 1.6; }
 
     .note-section { margin-bottom: 18pt; }
+    .note-section:last-child { margin-bottom: 0; }
     .note-title {
       font-size: 14pt;
       font-weight: bold;
@@ -301,8 +329,6 @@ export function buildPdfHtml(
       font-style: italic;
     }
     .note-content { margin-bottom: 12pt; }
-    .page-break { page-break-before: always; }
-
     .ql-size-10px { font-size: 10px; }
     .ql-size-12px { font-size: 12px; }
     .ql-size-14px { font-size: 14px; }

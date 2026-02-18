@@ -23,6 +23,7 @@ export const useCreateNote = () => {
         title: params.title,
         text: params.text,
         type: params.type || "General",
+        labelColor: params.labelColor,
         matter: params.matter,
         createdAt: now,
         lastEdited: now,

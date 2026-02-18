@@ -24,6 +24,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { useStreamingAudioUpload } from "../../hooks/useStreamingAudioUpload";
 import { useCreateNote } from "../../hooks/mutations/useCreateNote";
 import { useAutoMedicalHistorySync } from "../../hooks/mutations/useAutoMedicalHistorySync";
+import { getConsultationLabelColor } from "../../types/note";
 import RichTextEditor from "../../components/common/RichTextEditor";
 import ConsultationTemplatePopup from "./components/ConsultationTemplatePopup";
 import VoiceRecord from "./components/VoiceRecord";
@@ -72,8 +73,13 @@ export default function NewNoteScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<PatientsStackParamList>>();
   const route = useRoute<NewNoteRoute>();
-  const { patientId, consultationTitle, consultationType, patientName } =
-    route.params;
+  const {
+    patientId,
+    consultationTitle,
+    consultationType,
+    consultationLabelColor,
+    patientName,
+  } = route.params;
   const { user } = useAuth();
   const createNote = useCreateNote();
   const autoMedicalHistorySync = useAutoMedicalHistorySync();
@@ -160,6 +166,10 @@ export default function NewNoteScreen() {
         title: consultationTitle,
         text: content,
         type: consultationType,
+        labelColor: getConsultationLabelColor(
+          consultationType,
+          consultationLabelColor,
+        ),
       })
       .then(() => {
         autoMedicalHistorySync.mutate(

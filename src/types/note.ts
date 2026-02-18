@@ -4,6 +4,7 @@ export interface Note {
   title: string;
   text: string;
   type: string;
+  labelColor?: string;
   createdAt: string;
   lastEdited?: string;
   updatedAt?: string;
@@ -54,6 +55,7 @@ export interface CreateNoteRequest {
   title: string;
   text: string;
   type?: string;
+  labelColor?: string;
   matter?: string;
 }
 
@@ -70,6 +72,7 @@ export interface UpdateNoteRequest {
   title?: string;
   text?: string;
   type?: string;
+  labelColor?: string;
   matter?: string;
 }
 
@@ -100,3 +103,32 @@ export interface DeleteNotesResponse {
   deletedCount: number;
   message: string;
 }
+
+export const consultationTypes = [
+  "Comprehensive Examination",
+  "Emergency Visit",
+  "Orthodontics",
+  "Aesthetics",
+  "Wisdom Tooth Consultation",
+  "Other",
+] as const;
+
+export const consultationTypeLabelColors: Record<string, string> = {
+  "Comprehensive Examination": "#E3F2EA",
+  "Emergency Visit": "#F6E3EA",
+  Orthodontics: "#F4F0D8",
+  Aesthetics: "#E2ECF7",
+  "Wisdom Tooth Consultation": "#EEE7F6",
+  Other: "#E9EDF1",
+};
+
+export const defaultConsultationLabelColor = "#E9EDF1";
+
+export const getConsultationLabelColor = (
+  type?: string,
+  storedLabelColor?: string,
+): string => {
+  if (storedLabelColor) return storedLabelColor;
+  if (!type) return defaultConsultationLabelColor;
+  return consultationTypeLabelColors[type] || defaultConsultationLabelColor;
+};

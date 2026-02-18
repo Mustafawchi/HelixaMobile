@@ -1,5 +1,5 @@
 import React from "react";
-import { View, TextInput, StyleSheet } from "react-native";
+import { View, TextInput, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS } from "../../types/colors";
 import { spacing, borderRadius } from "../../theme";
@@ -30,6 +30,15 @@ export default function SearchBar({
         placeholder={placeholder}
         placeholderTextColor={COLORS.textMuted}
       />
+      {value.trim().length > 0 && (
+        <TouchableOpacity
+          style={styles.clearButton}
+          onPress={() => onChangeText("")}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="close" size={16} color={COLORS.textMuted} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -60,5 +69,13 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     padding: 0,
     letterSpacing: 0,
+  },
+  clearButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: spacing.xs,
   },
 });

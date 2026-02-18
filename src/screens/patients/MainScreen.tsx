@@ -43,7 +43,9 @@ export default function MainScreen() {
         ? "name"
         : "lastModified";
   const sortDirection =
-    sortKey === "name-desc" || sortKey === "created-desc" || sortKey === "last-modified-desc"
+    sortKey === "name-desc" ||
+    sortKey === "created-desc" ||
+    sortKey === "last-modified-desc"
       ? "desc"
       : "asc";
   const {
@@ -226,7 +228,7 @@ export default function MainScreen() {
         title="Patients"
         subtitle={`${patients.length} patients · ${totalNotes} total notes`}
         actions={[
-          { icon: "filter", onPress: () => setShowSortPopup(true) },
+          { icon: "swap-vertical", onPress: () => setShowSortPopup(true) },
           { icon: "add", onPress: () => setShowCreatePopup(true) },
         ]}
       />

@@ -2,8 +2,14 @@
 // PATIENT LETTER
 // ============================================================================
 
+export interface GeneratePatientLetterNote {
+  title: string;
+  type: string;
+  text: string;
+}
+
 export interface GeneratePatientLetterRequest {
-  noteContent: string;
+  notes: GeneratePatientLetterNote[];
   patientName: string;
   practiceName: string;
   doctorName: string;

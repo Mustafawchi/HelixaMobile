@@ -10,7 +10,10 @@ import {
   Keyboard,
   Platform,
   Alert,
+  ActionSheetIOS,
+  Linking,
 } from "react-native";
+import * as Sharing from "expo-sharing";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -31,7 +34,8 @@ import PdfAttachmentEditor from "../components/PdfAttachmentEditor";
 import RichTextEditor from "../../../components/common/RichTextEditor";
 import { usePdfExport } from "../../../hooks/usePdfExport";
 import { useWordExport } from "../../../hooks/useWordExport";
-import { composeAndOpenEmail, htmlToPlainText } from "../../../utils/email";
+import * as MailComposer from "expo-mail-composer";
+import { htmlToPlainText } from "../../../utils/email";
 import ExportPdfButton from "../../../components/common/ExportPdfButton";
 import ExportWordButton from "../../../components/common/ExportWordButton";
 
@@ -72,7 +76,8 @@ export default function SummaryToPatientScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const focusedEditorY = useRef(0);
   const editorPositions = useRef<Record<string, number>>({});
-  const { exportPdfViaServer, isServerExporting } = usePdfExport();
+  const { exportPdfViaServer, createPdfFileViaServer, isServerExporting } =
+    usePdfExport();
   const { exportLetterWord, isExportingWord } = useWordExport();
 
   const handleBack = useCallback(() => {
@@ -100,11 +105,84 @@ export default function SummaryToPatientScreen() {
 
     try {
       setIsSendingEmail(true);
-      await composeAndOpenEmail({
-        to: recipient,
-        subject: emailSubject,
-        body: htmlToPlainText(emailBody),
-      });
+
+      const attachmentUri = await createPdfFileViaServer(
+        letterContent,
+        `Summary_${patientName}_${new Date().toISOString().slice(0, 10)}`,
+      );
+
+      const EMAIL_APPS = [
+        { label: "Mail", scheme: "mailto:test@test.com", type: "mail" as const },
+        { label: "Gmail", scheme: "googlegmail://co?to=test@test.com", type: "gmail" as const },
+        { label: "Outlook", scheme: "ms-outlook://compose?to=test@test.com", type: "outlook" as const },
+        { label: "Yahoo Mail", scheme: "ymail://mail/compose?to=test@test.com", type: "yahoo" as const },
+        { label: "Spark", scheme: "readdle-spark://compose?recipient=test@test.com", type: "spark" as const },
+      ];
+
+      const availability = await Promise.all(
+        EMAIL_APPS.map(async (app) => ({
+          ...app,
+          available: await Linking.canOpenURL(app.scheme),
+        })),
+      );
+      const availableApps = availability.filter((a) => a.available);
+
+      if (availableApps.length === 0) {
+        Alert.alert("Email Unavailable", "No email app is configured on this device.");
+        return;
+      }
+
+      const openWithApp = async (type: typeof EMAIL_APPS[number]["type"]) => {
+        const encodedTo = encodeURIComponent(recipient ?? "");
+        const encodedSubject = encodeURIComponent(emailSubject);
+        const encodedBody = encodeURIComponent(htmlToPlainText(emailBody));
+
+        if (type === "mail") {
+          const isMailAvailable = await MailComposer.isAvailableAsync();
+          if (isMailAvailable) {
+            await MailComposer.composeAsync({
+              recipients: recipient ? [recipient] : [],
+              subject: emailSubject,
+              body: htmlToPlainText(emailBody),
+              attachments: [attachmentUri],
+            });
+            return;
+          }
+        }
+
+        const urlMap: Record<string, string> = {
+          gmail: `googlegmail://co?to=${encodedTo}&subject=${encodedSubject}&body=${encodedBody}`,
+          outlook: `ms-outlook://compose?to=${encodedTo}&subject=${encodedSubject}&body=${encodedBody}`,
+          yahoo: `ymail://mail/compose?to=${encodedTo}&subject=${encodedSubject}&body=${encodedBody}`,
+          spark: `readdle-spark://compose?recipient=${encodedTo}&subject=${encodedSubject}&body=${encodedBody}`,
+        };
+
+        const url = urlMap[type];
+        if (url) {
+          await Linking.openURL(url);
+        }
+
+        await Sharing.shareAsync(attachmentUri, {
+          mimeType: "application/pdf",
+          UTI: "com.adobe.pdf",
+          dialogTitle: emailSubject,
+        });
+      };
+
+      if (availableApps.length === 1) {
+        await openWithApp(availableApps[0].type);
+        return;
+      }
+
+      const options = [...availableApps.map((a) => a.label), "Cancel"];
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options, cancelButtonIndex: options.length - 1, title: "Choose Email App" },
+        (idx) => {
+          if (idx < availableApps.length) {
+            void openWithApp(availableApps[idx].type);
+          }
+        },
+      );
     } catch (error: any) {
       Alert.alert(
         "Email Error",
@@ -113,7 +191,15 @@ export default function SummaryToPatientScreen() {
     } finally {
       setIsSendingEmail(false);
     }
-  }, [isSendingEmail, patientEmail, emailSubject, emailBody]);
+  }, [
+    isSendingEmail,
+    patientEmail,
+    emailSubject,
+    emailBody,
+    createPdfFileViaServer,
+    letterContent,
+    patientName,
+  ]);
 
   useEffect(() => {
     const showEvent =

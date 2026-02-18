@@ -3,7 +3,7 @@ import {
   View,
   Text,
   TouchableOpacity,
-  FlatList,
+  SectionList,
   StyleSheet,
   Animated,
   Pressable,
@@ -18,6 +18,8 @@ export interface ChatSessionItem {
   id: string;
   title: string;
   lastMessageAt: string;
+  patientId: string | null;
+  patientName: string | null;
 }
 
 interface ChatHistoryDrawerProps {
@@ -30,7 +32,39 @@ interface ChatHistoryDrawerProps {
   onDeleteSession: (sessionId: string) => void;
 }
 
+interface Section {
+  title: string;
+  data: ChatSessionItem[];
+}
+
 const DRAWER_WIDTH = Dimensions.get("window").width * 0.78;
+
+function buildSections(sessions: ChatSessionItem[]): Section[] {
+  const generalSessions = sessions.filter((s) => !s.patientId);
+  const patientSessions = sessions.filter((s) => s.patientId);
+
+  const patientGroups: Record<string, ChatSessionItem[]> = {};
+  patientSessions.forEach((s) => {
+    const key = s.patientId!;
+    if (!patientGroups[key]) patientGroups[key] = [];
+    patientGroups[key].push(s);
+  });
+
+  const sections: Section[] = [];
+
+  if (generalSessions.length > 0) {
+    sections.push({ title: "GENERAL", data: generalSessions });
+  }
+
+  Object.entries(patientGroups).forEach(([, groupSessions]) => {
+    sections.push({
+      title: (groupSessions[0].patientName || "Unknown Patient").toUpperCase(),
+      data: groupSessions,
+    });
+  });
+
+  return sections;
+}
 
 export default function ChatHistoryDrawer({
   visible,
@@ -77,6 +111,8 @@ export default function ChatHistoryDrawer({
 
   if (!visible) return null;
 
+  const sections = buildSections(sessions);
+
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
       <Animated.View
@@ -105,13 +141,15 @@ export default function ChatHistoryDrawer({
           <Text style={styles.newChatText}>New Chat</Text>
         </TouchableOpacity>
 
-        <Text style={styles.sectionLabel}>RECENT</Text>
-
-        <FlatList
-          data={sessions}
+        <SectionList
+          sections={sections}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          stickySectionHeadersEnabled={false}
+          renderSectionHeader={({ section }) => (
+            <Text style={styles.sectionLabel}>{section.title}</Text>
+          )}
           renderItem={({ item }) => {
             const isActive = item.id === activeSessionId;
             return (
@@ -198,10 +236,12 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     letterSpacing: 0.5,
     paddingHorizontal: spacing.md,
-    marginBottom: spacing.sm,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
   },
   listContent: {
     paddingHorizontal: spacing.sm,
+    paddingBottom: spacing.xl,
   },
   sessionItem: {
     flexDirection: "row",

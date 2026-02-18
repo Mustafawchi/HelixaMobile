@@ -43,7 +43,7 @@ import {
   plainTextToHtml,
 } from "../../utils/generate";
 import SearchBar from "../../components/common/SearchBar";
-import GenerateLoadingOverlay from "../../components/common/GenerateLoadingOverlay";
+import LoadingOverlay from "../../components/common/LoadingOverlay";
 import NoteCard from "./components/NoteCard";
 import FilterSortBar, { NoteTypeValue } from "./components/FilterSortBar";
 import SummaryAction from "./components/SummaryAction";
@@ -111,11 +111,14 @@ export default function NoteListScreen() {
   const generateSmartSummary = useGenerateSmartSummary();
   const autoMedicalHistorySync = useAutoMedicalHistorySync();
   const { data: userProfile } = useUser();
-  const { exportPdfViaServer, isServerExporting } = usePdfExport();
+  const { exportPdfViaServer, isExporting, isServerExporting } = usePdfExport();
   const { exportMultipleWord, isExportingWord } = useWordExport();
   const [showCreatePopup, setShowCreatePopup] = useState(false);
   const [filterType, setFilterType] = useState<NoteTypeValue>("all");
   const [isGenerating, setIsGenerating] = useState(false);
+  // Captured at the moment the generate popup opens — avoids stale-closure
+  // issues with selectedIds inside Modal's async render tree.
+  const pendingGenerateNotesRef = useRef<Note[]>([]);
 
   const allNotes = useMemo(() => {
     if (!data?.pages) return [];
@@ -222,7 +225,7 @@ export default function NoteListScreen() {
   const handleReferWithDoctor = useCallback(
     (doctor: Doctor | null) => {
       setShowSelectDoctorPopup(false);
-      const notesToUse = getNotesForGeneration();
+      const notesToUse = pendingGenerateNotesRef.current;
       if (notesToUse.length === 0) {
         Alert.alert("No Notes", "No notes available to generate a referral from.");
         return;
@@ -501,13 +504,14 @@ export default function NoteListScreen() {
   }, [hasNextPage, isFetchingNextPage, debouncedSearch]);
 
   const handleCreateNote = useCallback(
-    (payload: { title: string; type: string }) => {
+    (payload: { title: string; type: string; labelColor: string }) => {
       setShowCreatePopup(false);
       navigation.navigate("NewNote", {
         patientId,
         patientName,
         consultationType: payload.type,
         consultationTitle: payload.title,
+        consultationLabelColor: payload.labelColor,
       });
     },
     [patientId, navigation],
@@ -515,12 +519,13 @@ export default function NoteListScreen() {
 
   const loadingOverlayText = useMemo(() => {
     if (isGenerating) return "Generating...";
-    if (isServerExporting) return "Exporting PDF...";
+    if (isExporting || isServerExporting) return "Exporting PDF...";
     if (isExportingWord) return "Exporting Word...";
     return "";
-  }, [isGenerating, isServerExporting, isExportingWord]);
+  }, [isGenerating, isExporting, isServerExporting, isExportingWord]);
 
-  const isGlobalLoadingVisible = isGenerating || isExportingWord;
+  const isGlobalLoadingVisible =
+    isGenerating || isExporting || isServerExporting || isExportingWord;
 
   const handleSmartSummary = useCallback(() => {
     if (isGenerating) return;
@@ -618,7 +623,10 @@ export default function NoteListScreen() {
           <SelectionActionBar
             onCancel={handleCancelSelection}
             onSelectAll={handleSelectAll}
-            onGenerate={() => setShowGeneratePopup(true)}
+            onGenerate={() => {
+              pendingGenerateNotesRef.current = getNotesForGeneration();
+              setShowGeneratePopup(true);
+            }}
           />
         ) : (
           <View style={styles.searchArea}>
@@ -739,19 +747,27 @@ export default function NoteListScreen() {
         onClose={() => setShowGeneratePopup(false)}
         onSummaryToPatient={() => {
           setShowGeneratePopup(false);
-          const notesToUse = getNotesForGeneration();
+          const notesToUse = pendingGenerateNotesRef.current;
           if (notesToUse.length === 0) {
             Alert.alert("No Notes", "No notes available to generate a summary from.");
             return;
           }
-          const noteContent = buildClinicalNotes(notesToUse);
           const doctorName = userProfile
             ? `${userProfile.firstName} ${userProfile.lastName}`.trim()
             : "";
           const practiceName = userProfile?.practiceName || "";
           setIsGenerating(true);
           generatePatientLetter.mutate(
-            { noteContent, patientName, practiceName, doctorName },
+            {
+              notes: notesToUse.map((note) => ({
+                title: note.title || "Untitled",
+                type: note.type || "General",
+                text: note.text || "",
+              })),
+              patientName,
+              practiceName,
+              doctorName,
+            },
             {
               onSuccess: (data) => {
                 setIsGenerating(false);
@@ -794,7 +810,7 @@ export default function NoteListScreen() {
         }}
         onReferPatient={() => {
           setShowGeneratePopup(false);
-          const notesToUse = getNotesForGeneration();
+          const notesToUse = pendingGenerateNotesRef.current;
           if (notesToUse.length === 0) {
             Alert.alert("No Notes", "No notes available to generate a referral from.");
             return;
@@ -837,7 +853,7 @@ export default function NoteListScreen() {
         )
       )}
 
-      <GenerateLoadingOverlay
+      <LoadingOverlay
         visible={isGlobalLoadingVisible}
         text={loadingOverlayText}
       />

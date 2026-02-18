@@ -39,6 +39,9 @@ export const useUpdateNote = () => {
                         ...(params.title !== undefined && { title: params.title }),
                         ...(params.text !== undefined && { text: params.text }),
                         ...(params.type !== undefined && { type: params.type }),
+                        ...(params.labelColor !== undefined && {
+                          labelColor: params.labelColor,
+                        }),
                         ...(params.matter !== undefined && { matter: params.matter }),
                         lastEdited: now,
                         updatedAt: now,

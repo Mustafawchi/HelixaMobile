@@ -5,7 +5,7 @@ import AppCard from "../../../components/common/AppCard";
 import SwipeableRow from "../../../components/common/SwipeableRow";
 import { COLORS } from "../../../types/colors";
 import { spacing, borderRadius } from "../../../theme";
-import type { Note } from "../../../types/note";
+import { getConsultationLabelColor, type Note } from "../../../types/note";
 
 interface NoteCardProps {
   note: Note;
@@ -69,7 +69,20 @@ export default function NoteCard({
             </Text>
             <View style={styles.metaRow}>
               <View style={styles.tag}>
-                <Text style={styles.tagText}>{note.type}</Text>
+                <Text
+                  style={[
+                    styles.tagText,
+                    {
+                      backgroundColor: getConsultationLabelColor(
+                        note.type,
+                        note.labelColor,
+                      ),
+                      color: COLORS.textPrimary,
+                    },
+                  ]}
+                >
+                  {note.type}
+                </Text>
               </View>
               <Text style={styles.metaText}>
                 Last edited: {lastEdited}
@@ -130,15 +143,15 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   tag: {
-    backgroundColor: COLORS.surfaceSecondary,
     borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
   },
   tagText: {
     fontSize: 11,
     fontWeight: "600",
     color: COLORS.textSecondary,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
   },
   metaText: {
     fontSize: 11,

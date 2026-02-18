@@ -3,22 +3,17 @@ import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import AppPopup from "../../../components/common/AppPopup";
 import { COLORS } from "../../../types/colors";
 import { borderRadius, spacing, typography } from "../../../theme";
+import {
+  consultationTypes,
+  getConsultationLabelColor,
+} from "../../../types/note";
 
 interface CreateNotePopupProps {
   visible: boolean;
   onClose: () => void;
-  onCreate?: (payload: { title: string; type: string }) => void;
+  onCreate?: (payload: { title: string; type: string; labelColor: string }) => void;
   isSubmitting?: boolean;
 }
-
-const NOTE_TYPES = [
-  "Comprehensive Examination",
-  "Emergency Visit",
-  "Orthodontics",
-  "Aesthetics",
-  "Wisdom Tooth Consultation",
-  "Other",
-];
 
 export default function CreateNotePopup({
   visible,
@@ -49,6 +44,9 @@ export default function CreateNotePopup({
     onCreate?.({
       title: finalType,
       type: selectedType === "Other" ? "Other" : selectedType,
+      labelColor: getConsultationLabelColor(
+        selectedType === "Other" ? "Other" : selectedType,
+      ),
     });
   };
 
@@ -56,7 +54,7 @@ export default function CreateNotePopup({
     <AppPopup visible={visible} onClose={onClose}>
       <Text style={styles.heading}>Select Consultation Type</Text>
       <View style={styles.typeList}>
-        {NOTE_TYPES.map((type) => (
+        {consultationTypes.map((type) => (
           <View key={type}>
             <Pressable
               style={[
@@ -68,6 +66,12 @@ export default function CreateNotePopup({
                 if (type !== "Other") setOtherText("");
               }}
             >
+              <View
+                style={[
+                  styles.typeColorDot,
+                  { backgroundColor: getConsultationLabelColor(type) },
+                ]}
+              />
               <Text
                 style={[
                   styles.typeItemText,
@@ -122,6 +126,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   typeItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
     borderRadius: borderRadius.md,
@@ -140,6 +147,13 @@ const styles = StyleSheet.create({
   },
   typeItemTextSelected: {
     color: COLORS.white,
+  },
+  typeColorDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.08)",
   },
   otherInput: {
     marginTop: spacing.sm,
