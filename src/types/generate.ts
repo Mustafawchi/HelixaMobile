@@ -73,6 +73,7 @@ export interface GenerateReferralLetterRequest {
   medicalHistory: string;
   referralDoctor: ReferralDoctorPayload | null;
   senderDetails: ReferralSenderDetails;
+  specialistType?: string;
 }
 
 export interface GenerateReferralLetterResponse {

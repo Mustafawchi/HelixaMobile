@@ -275,8 +275,8 @@ export default function AskHelixaScreen() {
       {/* Chat Body */}
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={0}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
         {isLoadingSession ? (
           <View style={styles.loadingState}>

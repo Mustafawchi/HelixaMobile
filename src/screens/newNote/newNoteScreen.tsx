@@ -100,21 +100,66 @@ export default function NewNoteScreen() {
   const [showSaveButton, setShowSaveButton] = useState(false);
   const [consultationRecorded, setConsultationRecorded] = useState(false);
   const [procedureRecorded, setProcedureRecorded] = useState(false);
+  const [isRegeneratingSection, setIsRegeneratingSection] = useState<RecordTarget | null>(null);
 
   // Track base content before streaming starts
   const baseContentRef = useRef(content);
+
+  // Track per-section data for regeneration
+  const sectionDataRef = useRef<{
+    consultation: { audioUri: string; baseContent: string; generatedContent: string } | null;
+    procedure: { audioUri: string; baseContent: string; generatedContent: string } | null;
+  }>({ consultation: null, procedure: null });
+  const regeneratingRef = useRef<RecordTarget | null>(null);
+  const recordTargetRef = useRef<RecordTarget>(recordTarget);
+  recordTargetRef.current = recordTarget;
 
   // Streaming audio upload hook
   const streamingUpload = useStreamingAudioUpload({
     onComplete: (generatedContent) => {
       console.log("[NewNoteScreen] Streaming complete, content length:", generatedContent.length);
-      setContent(baseContentRef.current + generatedContent);
-      // Mark the recorded section as completed
-      if (recordTarget === "consultation") setConsultationRecorded(true);
-      if (recordTarget === "procedure") setProcedureRecorded(true);
+
+      const regenSection = regeneratingRef.current;
+      if (regenSection) {
+        // Regeneration complete
+        regeneratingRef.current = null;
+        setIsRegeneratingSection(null);
+
+        // Update stored generated content
+        if (sectionDataRef.current[regenSection]) {
+          sectionDataRef.current[regenSection]!.generatedContent = generatedContent;
+        }
+
+        if (regenSection === "consultation" && sectionDataRef.current.procedure) {
+          // Consultation regenerated — append existing procedure content
+          setContent(
+            baseContentRef.current + generatedContent + sectionDataRef.current.procedure.generatedContent,
+          );
+        } else {
+          setContent(baseContentRef.current + generatedContent);
+        }
+      } else {
+        // Normal recording complete
+        const currentTarget = recordTargetRef.current;
+
+        // Store section data for future regeneration
+        sectionDataRef.current[currentTarget] = {
+          audioUri: lastRecordedAudioRef.current,
+          baseContent: baseContentRef.current,
+          generatedContent,
+        };
+
+        setContent(baseContentRef.current + generatedContent);
+        if (currentTarget === "consultation") setConsultationRecorded(true);
+        if (currentTarget === "procedure") setProcedureRecorded(true);
+      }
     },
     onError: (error) => {
       console.error("[NewNoteScreen] Streaming error:", error);
+      if (regeneratingRef.current) {
+        regeneratingRef.current = null;
+        setIsRegeneratingSection(null);
+      }
       Alert.alert(
         "Processing Failed",
         error.message || "Could not process the recording. Please try again.",
@@ -122,9 +167,15 @@ export default function NewNoteScreen() {
     },
   });
 
+  // Store last recorded audio URI
+  const lastRecordedAudioRef = useRef<string>("");
+
   const handleRecordingComplete = useCallback(
     async (result: AudioRecordingResult) => {
       console.log("[NewNoteScreen] Recording complete:", result);
+
+      // Store audio URI for potential regeneration
+      lastRecordedAudioRef.current = result.uri;
 
       // Save current content as base before streaming
       baseContentRef.current = content;
@@ -151,6 +202,35 @@ export default function NewNoteScreen() {
     // Restore base content if canceled
     setContent(baseContentRef.current);
   }, [streamingUpload]);
+
+  const handleRegenerateWithTemplate = useCallback(
+    async (templateId: string) => {
+      const section = isRegeneratingSection;
+      if (!section) return;
+
+      const sectionData = sectionDataRef.current[section];
+      if (!sectionData) return;
+
+      // Set up regeneration tracking
+      regeneratingRef.current = section;
+      baseContentRef.current = sectionData.baseContent;
+
+      try {
+        await streamingUpload.upload({
+          fileUri: sectionData.audioUri,
+          templateId,
+          patientId,
+          consultationType,
+          recordTarget: section,
+        });
+      } catch (error) {
+        console.log("[NewNoteScreen] Regeneration error handled");
+        regeneratingRef.current = null;
+        setIsRegeneratingSection(null);
+      }
+    },
+    [isRegeneratingSection, streamingUpload, patientId, consultationType],
+  );
 
   const showProcessingOverlay = streamingUpload.isUploading;
 
@@ -263,6 +343,18 @@ export default function NewNoteScreen() {
                   </View>
                 )}
               </View>
+              {consultationRecorded && !streamingUpload.isUploading && (
+                <TouchableOpacity
+                  style={styles.regenerateButton}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    setIsRegeneratingSection("consultation");
+                    setShowTemplatePopup(true);
+                  }}
+                >
+                  <Ionicons name="swap-horizontal" size={16} color={COLORS.primary} />
+                </TouchableOpacity>
+              )}
               {recordTarget === "consultation" && !consultationRecorded && (
                 <View style={styles.tabIndicator} />
               )}
@@ -298,6 +390,18 @@ export default function NewNoteScreen() {
                   </View>
                 )}
               </View>
+              {procedureRecorded && !streamingUpload.isUploading && (
+                <TouchableOpacity
+                  style={styles.regenerateButton}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    setIsRegeneratingSection("procedure");
+                    setShowTemplatePopup(true);
+                  }}
+                >
+                  <Ionicons name="swap-horizontal" size={16} color={COLORS.primary} />
+                </TouchableOpacity>
+              )}
               {recordTarget === "procedure" && !procedureRecorded && (
                 <View style={[styles.tabIndicator, styles.tabIndicatorBlue]} />
               )}
@@ -342,9 +446,20 @@ export default function NewNoteScreen() {
 
       <ConsultationTemplatePopup
         visible={showTemplatePopup}
-        onClose={() => setShowTemplatePopup(false)}
+        onClose={() => {
+          setShowTemplatePopup(false);
+          setIsRegeneratingSection(null);
+        }}
         selectedTemplateId={selectedTemplateId}
-        onSelect={(template) => setSelectedTemplateId(template.id)}
+        onSelect={(template) => {
+          setSelectedTemplateId(template.id);
+          if (isRegeneratingSection) {
+            setShowTemplatePopup(false);
+            handleRegenerateWithTemplate(template.id);
+            setIsRegeneratingSection(null);
+          }
+        }}
+        isRegenerating={!!isRegeneratingSection}
       />
     </View>
   );
@@ -486,6 +601,15 @@ const styles = StyleSheet.create({
   },
   tabIndicatorBlue: {
     backgroundColor: "#3b82f6",
+  },
+  regenerateButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
 });

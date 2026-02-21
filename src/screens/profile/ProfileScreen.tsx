@@ -39,12 +39,15 @@ export default function ProfileScreen() {
   const totalMatters = totalMattersCount;
   const notesUsed = subscriptionStatus?.notesUsed ?? 0;
   const noteLimit = subscriptionStatus?.noteLimit ?? 12;
-  const usagePercentage =
-    noteLimit && noteLimit > 0 ? Math.min(100, (notesUsed / noteLimit) * 100) : 0;
+  const isUnlimited = subscriptionStatus?.noteLimit === null;
+  const usagePercentage = isUnlimited
+    ? null
+    : noteLimit && noteLimit > 0 ? Math.min(100, (notesUsed / noteLimit) * 100) : 0;
   const billingCycleText =
     subscriptionStatus?.billingCycle === "weekly" ? "week" : "month";
-  const notesRemaining =
-    noteLimit === null ? null : Math.max(0, noteLimit - notesUsed);
+  const notesRemaining = isUnlimited
+    ? null
+    : Math.max(0, noteLimit - notesUsed);
 
   const mostActivePatient = [...patients]
     .sort((a, b) => (b.noteCount || 0) - (a.noteCount || 0))
@@ -65,6 +68,8 @@ export default function ProfileScreen() {
     const cycle = subscriptionStatus.billingCycle;
 
     switch (plan) {
+      case "Pro":
+        return "Access to all features";
       case "Premium":
         return cycle === "weekly"
           ? "30 notes per week • PDF + Word export • Priority support"
@@ -130,9 +135,9 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>
-                {subscriptionLoading ? "..." : `${Math.round(usagePercentage)}%`}
+                {subscriptionLoading ? "..." : usagePercentage === null ? "∞" : `${Math.round(usagePercentage)}%`}
               </Text>
-              <Text style={styles.statLabel}>Plan Used</Text>
+              <Text style={styles.statLabel}>{usagePercentage === null ? "Unlimited" : "Plan Used"}</Text>
             </View>
           </View>
           <View style={styles.divider} />
@@ -141,22 +146,26 @@ export default function ProfileScreen() {
               Notes Used This {billingCycleText === "week" ? "Week" : "Month"}
             </Text>
             <Text style={styles.usageCount}>
-              {subscriptionLoading ? "..." : `${notesUsed} / ${noteLimit ?? "∞"}`}
+              {subscriptionLoading ? "..." : isUnlimited ? `${notesUsed} (Unlimited)` : `${notesUsed} / ${noteLimit}`}
             </Text>
           </View>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${usagePercentage}%` }]} />
-          </View>
+          {!isUnlimited && (
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${usagePercentage ?? 0}%` }]} />
+            </View>
+          )}
           <Text style={styles.usageHint}>
             {subscriptionLoading
               ? "Loading usage..."
-              : notesRemaining === null
-                ? "Unlimited notes remaining"
+              : isUnlimited
+                ? `Unlimited notes this ${billingCycleText}`
                 : `${notesRemaining} notes remaining this ${billingCycleText}`}
           </Text>
-          <Text style={styles.usageSub}>
-            Usage resets next {billingCycleText === "week" ? "week" : "month"}
-          </Text>
+          {!isUnlimited && (
+            <Text style={styles.usageSub}>
+              Usage resets next {billingCycleText === "week" ? "week" : "month"}
+            </Text>
+          )}
         </View>
       </View>
 
@@ -187,7 +196,9 @@ export default function ProfileScreen() {
               color: COLORS.primary,
               text: subscriptionLoading
                 ? "Loading subscription insights..."
-                : `You're using ${notesUsed} of ${noteLimit ?? "∞"} notes on your ${subscriptionInfo.plan} plan (${billingCycleText})`,
+                : isUnlimited
+                  ? `You've used ${notesUsed} notes on your ${subscriptionInfo.plan} plan (${billingCycleText})`
+                  : `You're using ${notesUsed} of ${noteLimit} notes on your ${subscriptionInfo.plan} plan (${billingCycleText})`,
             },
             {
               icon: "trending-up",

@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import PatientsStack from './PatientsStack';
 import ProfileScreen from '../screens/profile/ProfileScreen';
@@ -12,13 +13,16 @@ import { COLORS } from '../types/colors';
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export default function MainTabs() {
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Platform.OS === 'ios' ? 28 : Math.max(insets.bottom, 8);
+
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.textMuted,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [styles.tabBar, { paddingBottom: bottomPadding, height: 57 + bottomPadding }],
         tabBarLabelStyle: styles.tabLabel,
       }}
     >
@@ -82,12 +86,10 @@ export default function MainTabs() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    height: Platform.OS === 'ios' ? 85 : 65,
     backgroundColor: COLORS.surface,
     borderTopWidth: 1,
     borderTopColor: COLORS.borderLight,
     paddingTop: 8,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 8,
   },
   tabLabel: {
     fontSize: 11,

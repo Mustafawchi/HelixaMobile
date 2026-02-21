@@ -16,12 +16,13 @@ interface ConsultationTemplatePopupProps {
   onClose: () => void;
   selectedTemplateId: string;
   onSelect: (template: Template) => void;
+  isRegenerating?: boolean;
 }
 
 const TEMPLATES: Template[] = [
   {
     id: "standard",
-    title: "Standard",
+    title: "Comprehensive Examination",
     description: "Comprehensive exam with all clinical sections",
   },
   {
@@ -58,6 +59,7 @@ export default function ConsultationTemplatePopup({
   onClose,
   selectedTemplateId,
   onSelect,
+  isRegenerating = false,
 }: ConsultationTemplatePopupProps) {
   const [activeTab, setActiveTab] = useState<Tab>("templates");
 
@@ -65,11 +67,19 @@ export default function ConsultationTemplatePopup({
     onClose();
   };
 
+  const handleTemplatePress = (template: Template) => {
+    onSelect(template);
+  };
+
   return (
     <AppPopup visible={visible} onClose={onClose}>
-      <Text style={styles.heading}>Consultation Template</Text>
+      <Text style={styles.heading}>
+        {isRegenerating ? "Regenerate with Template" : "Consultation Template"}
+      </Text>
       <Text style={styles.subheading}>
-        Choose how your consultation will be formatted
+        {isRegenerating
+          ? "Select a template to regenerate your note"
+          : "Choose how your consultation will be formatted"}
       </Text>
 
       {/* Tabs */}
@@ -114,7 +124,7 @@ export default function ConsultationTemplatePopup({
                   styles.templateRow,
                   isSelected && styles.templateRowSelected,
                 ]}
-                onPress={() => onSelect(template)}
+                onPress={() => handleTemplatePress(template)}
               >
                 <View style={styles.templateTextGroup}>
                   <Text
@@ -153,7 +163,7 @@ export default function ConsultationTemplatePopup({
       {/* Done Button */}
       <View style={styles.footer}>
         <Pressable style={styles.doneButton} onPress={handleDone}>
-          <Text style={styles.doneText}>Done</Text>
+          <Text style={styles.doneText}>{isRegenerating ? "Cancel" : "Done"}</Text>
         </Pressable>
       </View>
     </AppPopup>

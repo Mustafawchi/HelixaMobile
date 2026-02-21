@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useMemo } from "react";
+import React, { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -14,10 +14,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS } from "../../../types/colors";
 import { spacing, borderRadius } from "../../../theme";
-import {
-  usePatients,
-  useSearchPatients,
-} from "../../../hooks/queries/usePatients";
+import { usePaginatedPatients } from "../../../hooks/queries/usePatients";
 import type { Patient } from "../../../types/patient";
 
 export interface PatientOption {
@@ -50,27 +47,42 @@ export default function PatientContextSelector({
 }: PatientContextSelectorProps) {
   const [visible, setVisible] = useState(false);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const selectorRef = useRef<View>(null);
   const [dropdownTop, setDropdownTop] = useState(0);
 
-  const { data: allPatients, isLoading: isLoadingAll } = usePatients();
-  const { data: searchResults, isLoading: isSearching } =
-    useSearchPatients(search.trim());
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
-  const isSearchMode = search.trim().length > 0;
-  const isLoading = isSearchMode ? isSearching : isLoadingAll;
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+  } = usePaginatedPatients({
+    searchQuery: debouncedSearch.trim() || undefined,
+    sortBy: "name",
+    sortDirection: "asc",
+  });
 
   const options: PatientOption[] = useMemo(() => {
-    if (isSearchMode) {
-      const patients = (searchResults ?? []).map(patientToOption);
+    const patients = (data?.pages.flatMap((page) => page.patients) ?? []).map(
+      patientToOption,
+    );
+    if (debouncedSearch.trim()) {
       const generalMatches = GENERAL_OPTION.name
         .toLowerCase()
-        .includes(search.trim().toLowerCase());
+        .includes(debouncedSearch.trim().toLowerCase());
       return generalMatches ? [GENERAL_OPTION, ...patients] : patients;
     }
-    const patients = (allPatients ?? []).map(patientToOption);
     return [GENERAL_OPTION, ...patients];
-  }, [allPatients, searchResults, isSearchMode, search]);
+  }, [data, debouncedSearch]);
 
   const handleOpen = useCallback(() => {
     Keyboard.dismiss();
@@ -157,6 +169,12 @@ export default function PatientContextSelector({
               keyExtractor={(item) => item.id ?? "general"}
               keyboardShouldPersistTaps="handled"
               style={styles.list}
+              onEndReached={() => {
+                if (hasNextPage && !isFetchingNextPage) {
+                  fetchNextPage();
+                }
+              }}
+              onEndReachedThreshold={0.3}
               renderItem={({ item }) => {
                 const isGeneral = item.id === null;
                 const isSelected =
@@ -190,6 +208,15 @@ export default function PatientContextSelector({
                   </TouchableOpacity>
                 );
               }}
+              ListFooterComponent={
+                isFetchingNextPage ? (
+                  <ActivityIndicator
+                    style={styles.loader}
+                    size="small"
+                    color={COLORS.primary}
+                  />
+                ) : null
+              }
               ListEmptyComponent={
                 <Text style={styles.emptyText}>No patients found</Text>
               }

@@ -22,6 +22,24 @@ import { COLORS } from "../../../types/colors";
 import { borderRadius, spacing } from "../../../theme";
 import type { Doctor, CreateDoctorPayload } from "../../../types/generate";
 
+const SPECIALIST_TYPES = [
+  "General Practitioner",
+  "Endodontist",
+  "Orthodontist",
+  "Periodontist",
+  "Oral Surgeon / Oral & Maxillofacial Surgeon",
+  "Prosthodontist",
+  "Pediatric Dentist",
+  "Oral Pathologist",
+  "Oral Radiologist",
+  "Implantologist",
+  "TMJ Specialist",
+  "Sleep Medicine Specialist",
+  "ENT Specialist",
+  "Dermatologist",
+  "Other",
+] as const;
+
 interface SelectDoctorPopupProps {
   visible: boolean;
   onClose: () => void;
@@ -50,10 +68,14 @@ export default function SelectDoctorPopup({
   const [currentView, setCurrentView] = useState<PopupView>("list");
   const [form, setForm] = useState<CreateDoctorPayload>(EMPTY_FORM);
   const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
+  const [customSpecialty, setCustomSpecialty] = useState("");
+  const [showSpecialtyPicker, setShowSpecialtyPicker] = useState(false);
 
   const resetForm = useCallback(() => {
     setForm(EMPTY_FORM);
     setEditingDoctor(null);
+    setCustomSpecialty("");
+    setShowSpecialtyPicker(false);
     setCurrentView("list");
   }, []);
 
@@ -83,12 +105,25 @@ export default function SelectDoctorPopup({
 
   const handleEdit = useCallback((doctor: Doctor) => {
     setEditingDoctor(doctor);
-    setForm({
-      name: doctor.name,
-      surname: doctor.surname,
-      email: doctor.email,
-      specialty: doctor.specialty || "",
-    });
+    const isKnownType = (SPECIALIST_TYPES as readonly string[]).includes(doctor.specialty || "");
+    if (doctor.specialty && !isKnownType) {
+      setForm({
+        name: doctor.name,
+        surname: doctor.surname,
+        email: doctor.email,
+        specialty: "Other",
+      });
+      setCustomSpecialty(doctor.specialty);
+    } else {
+      setForm({
+        name: doctor.name,
+        surname: doctor.surname,
+        email: doctor.email,
+        specialty: doctor.specialty || "",
+      });
+      setCustomSpecialty("");
+    }
+    setShowSpecialtyPicker(false);
     setCurrentView("form");
   }, []);
 
@@ -116,11 +151,12 @@ export default function SelectDoctorPopup({
       return;
     }
 
+    const effectiveSpecialty = form.specialty === "Other" ? customSpecialty.trim() : (form.specialty?.trim() || "");
     const payload: CreateDoctorPayload = {
       name: form.name.trim(),
       surname: form.surname.trim(),
       email: form.email.trim(),
-      specialty: form.specialty?.trim() || "",
+      specialty: effectiveSpecialty,
     };
 
     if (editingDoctor) {
@@ -293,14 +329,80 @@ export default function SelectDoctorPopup({
 
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>Specialty</Text>
-              <TextInput
-                style={styles.input}
-                value={form.specialty}
-                onChangeText={(v) => setForm((p) => ({ ...p, specialty: v }))}
-                placeholder="e.g. Cardiology, Neurology..."
-                placeholderTextColor={COLORS.textMuted}
-                autoCapitalize="words"
-              />
+              <Pressable
+                style={[styles.input, { justifyContent: "center" }]}
+                onPress={() => setShowSpecialtyPicker((prev) => !prev)}
+              >
+                <Text
+                  style={{
+                    fontSize: 14,
+                    color: form.specialty ? COLORS.textPrimary : COLORS.textMuted,
+                  }}
+                >
+                  {form.specialty || "Select specialist type..."}
+                </Text>
+              </Pressable>
+              {showSpecialtyPicker && (
+                <View
+                  style={{
+                    borderWidth: 1,
+                    borderColor: COLORS.border,
+                    borderRadius: borderRadius.md,
+                    maxHeight: 200,
+                    marginTop: 4,
+                    backgroundColor: COLORS.surface,
+                  }}
+                >
+                  <ScrollView nestedScrollEnabled>
+                    <Pressable
+                      style={{
+                        paddingVertical: 10,
+                        paddingHorizontal: spacing.sm,
+                      }}
+                      onPress={() => {
+                        setForm((p) => ({ ...p, specialty: "" }));
+                        setShowSpecialtyPicker(false);
+                      }}
+                    >
+                      <Text style={{ fontSize: 14, color: COLORS.textMuted }}>
+                        No specialty
+                      </Text>
+                    </Pressable>
+                    {SPECIALIST_TYPES.map((type) => (
+                      <Pressable
+                        key={type}
+                        style={{
+                          paddingVertical: 10,
+                          paddingHorizontal: spacing.sm,
+                          backgroundColor:
+                            form.specialty === type
+                              ? "rgba(26, 77, 62, 0.08)"
+                              : "transparent",
+                        }}
+                        onPress={() => {
+                          setForm((p) => ({ ...p, specialty: type }));
+                          setShowSpecialtyPicker(false);
+                          if (type !== "Other") setCustomSpecialty("");
+                        }}
+                      >
+                        <Text style={{ fontSize: 14, color: COLORS.textPrimary }}>
+                          {type}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+              {form.specialty === "Other" && (
+                <TextInput
+                  style={[styles.input, { marginTop: 8 }]}
+                  value={customSpecialty}
+                  onChangeText={setCustomSpecialty}
+                  placeholder="Enter custom specialty..."
+                  placeholderTextColor={COLORS.textMuted}
+                  autoCapitalize="words"
+                />
+              )}
             </View>
           </ScrollView>
 

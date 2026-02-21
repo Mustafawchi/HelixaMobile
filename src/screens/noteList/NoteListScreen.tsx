@@ -65,6 +65,7 @@ import { buildNotesContentHtml } from "../../utils/pdfTemplate";
 import type { PatientsStackParamList } from "../../types/navigation";
 import type { Note } from "../../types/note";
 import type { Doctor } from "../../types/generate";
+import { notesApi } from "../../api/endpoints/notes";
 
 type NoteListRoute = RouteProp<PatientsStackParamList, "NoteList">;
 
@@ -259,6 +260,7 @@ export default function NoteListScreen() {
           medicalHistory,
           referralDoctor,
           senderDetails: { name: senderName, position: senderPosition },
+          specialistType: doctor?.specialty || undefined,
         },
         {
           onSuccess: (data) => {
@@ -527,66 +529,87 @@ export default function NoteListScreen() {
   const isGlobalLoadingVisible =
     isGenerating || isExporting || isServerExporting || isExportingWord;
 
-  const handleSmartSummary = useCallback(() => {
+  const handleSmartSummary = useCallback(async () => {
     if (isGenerating) return;
 
-    const notesToUse = getNotesForGeneration();
-    if (notesToUse.length === 0) {
-      Alert.alert("No Notes", "No notes available to generate a smart summary.");
-      return;
-    }
-
-    const notesForApi = notesToUse.map((note) => ({
-      title: note.title || "Untitled",
-      type: note.type || "General",
-      text: htmlToPlainText(note.text || ""),
-      createdAt: note.createdAt,
-    }));
-
     setIsGenerating(true);
-    generateSmartSummary.mutate(
-      {
-        notes: notesForApi,
-        folderName: patientName,
-        folderType: "Patient Notes",
-      },
-      {
-        onSuccess: (data) => {
-          setIsGenerating(false);
-          navigation.navigate("SmartSummary", {
-            patientId,
-            patientName,
-            patientEmail: patientDetails?.email ?? undefined,
-            selectedNoteIds:
-              selectedIds.size > 0 ? Array.from(selectedIds) : undefined,
-            generatedContent: plainTextToHtml(data.summary),
-            generatedEmailBody: buildPatientEmailBodyHtml({
+
+    try {
+      // If user selected specific notes, use those; otherwise fetch up to 30
+      let notesToUse: Note[];
+      if (selectedIds.size > 0) {
+        notesToUse = allNotes.filter((n) => selectedIds.has(n.id));
+      } else {
+        const response = await notesApi.getPatientNotes({
+          patientId,
+          pageSize: 30,
+        });
+        notesToUse = response.notes;
+      }
+
+      if (notesToUse.length === 0) {
+        Alert.alert("No Notes", "No notes available to generate a smart summary.");
+        setIsGenerating(false);
+        return;
+      }
+
+      const notesForApi = notesToUse.map((note) => ({
+        title: note.title || "Untitled",
+        type: note.type || "General",
+        text: htmlToPlainText(note.text || ""),
+        createdAt: note.createdAt,
+      }));
+
+      generateSmartSummary.mutate(
+        {
+          notes: notesForApi,
+          folderName: patientName,
+          folderType: "Patient Notes",
+        },
+        {
+          onSuccess: (data) => {
+            setIsGenerating(false);
+            navigation.navigate("SmartSummary", {
+              patientId,
               patientName,
-              practiceName: userProfile?.practiceName || "",
-            }),
-            notesCount: data.notesCount,
-            generatedAt: data.generatedAt,
-            folderType: data.folderType,
-          });
+              patientEmail: patientDetails?.email ?? undefined,
+              selectedNoteIds:
+                selectedIds.size > 0 ? Array.from(selectedIds) : undefined,
+              generatedContent: plainTextToHtml(data.summary),
+              generatedEmailBody: buildPatientEmailBodyHtml({
+                patientName,
+                practiceName: userProfile?.practiceName || "",
+              }),
+              notesCount: data.notesCount,
+              generatedAt: data.generatedAt,
+              folderType: data.folderType,
+            });
+          },
+          onError: (err) => {
+            setIsGenerating(false);
+            Alert.alert(
+              "Smart Summary Failed",
+              err instanceof Error ? err.message : "Failed to generate summary.",
+            );
+          },
         },
-        onError: (err) => {
-          setIsGenerating(false);
-          Alert.alert(
-            "Smart Summary Failed",
-            err instanceof Error ? err.message : "Failed to generate summary.",
-          );
-        },
-      },
-    );
+      );
+    } catch (err) {
+      setIsGenerating(false);
+      Alert.alert(
+        "Smart Summary Failed",
+        err instanceof Error ? err.message : "Failed to fetch notes for summary.",
+      );
+    }
   }, [
     isGenerating,
-    getNotesForGeneration,
+    allNotes,
+    selectedIds,
     generateSmartSummary,
     patientName,
     navigation,
     patientId,
     patientDetails?.email,
-    selectedIds,
     userProfile?.practiceName,
   ]);
 
