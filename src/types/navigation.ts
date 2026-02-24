@@ -11,6 +11,11 @@ export type MainTabParamList = {
   Settings: undefined;
 };
 
+export type SettingsStackParamList = {
+  SettingsHome: undefined;
+  PdfSettings: undefined;
+};
+
 export type PatientsStackParamList = {
   PatientList: undefined;
   PatientDetails: { patientId: string };

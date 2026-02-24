@@ -5,12 +5,14 @@ export interface PdfSettings {
   headerLogoWidth?: number;
   headerLogoHeight?: number;
   headerImageRatio?: number;
+  headerLogoOpacity?: number;
   headerBackgroundColor?: string;
   footerLogoUrl?: string;
   footerLogoPosition?: "left" | "center" | "right";
   footerLogoWidth?: number;
   footerLogoHeight?: number;
   footerImageRatio?: number;
+  footerLogoOpacity?: number;
   footerBackgroundColor?: string;
   signatureUrl?: string;
   includeSignature?: boolean;

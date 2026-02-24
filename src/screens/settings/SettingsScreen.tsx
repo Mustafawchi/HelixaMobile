@@ -2,15 +2,21 @@ import React from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { COLORS, spacing, typography, borderRadius } from "../../theme";
 import BiometricSetting from "./components/BiometricSetting";
 import ChangePassword from "./components/ChangePassword";
 import TwoFactorAuth from "./components/TwoFactorAuth";
 import { useBiometric } from "../../context/BiometricContext";
 import { useLogout } from "../../hooks/mutations/useLogin";
+import type { SettingsStackParamList } from "../../types/navigation";
+
+type SettingsNav = NativeStackNavigationProp<SettingsStackParamList, "SettingsHome">;
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<SettingsNav>();
   const { biometricAvailable } = useBiometric();
   const logout = useLogout();
 
@@ -40,6 +46,26 @@ export default function SettingsScreen() {
 
         <TwoFactorAuth />
       </View>
+
+      <Text style={styles.sectionTitle}>Export Settings</Text>
+      <View style={styles.card}>
+        <Pressable
+          style={styles.row}
+          onPress={() => navigation.navigate("PdfSettings")}
+        >
+          <View style={styles.iconCircle}>
+            <Ionicons name="document" size={18} color={COLORS.primary} />
+          </View>
+          <View style={styles.rowText}>
+            <Text style={styles.rowTitle}>PDF Settings</Text>
+            <Text style={styles.rowSubtitle}>
+              Header, footer, logo, and page settings
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+        </Pressable>
+      </View>
+
       <Text style={styles.sectionTitle}>Support & Legal</Text>
       <View style={styles.card}>
         <Pressable style={styles.row}>

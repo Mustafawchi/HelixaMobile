@@ -57,12 +57,12 @@ function buildHeaderHTML(settings?: PdfSettings): string {
   const bg = settings.headerBackgroundColor || "transparent";
   const posCSS = getLogoPositionCSS(settings.headerLogoPosition);
 
+  const opacity = settings.headerLogoOpacity ?? 1.0;
   return `
     <div class="pdf-header">
       <div class="pdf-header-inner" style="${posCSS}background:${bg};height:${height}mm;">
-        <img src="${escapeHtmlAttr(settings.headerLogoUrl)}" alt="" style="height:${height}mm;width:${width}mm;max-height:${height}mm;max-width:${width}mm;object-fit:contain;display:block;" />
+        <img src="${escapeHtmlAttr(settings.headerLogoUrl)}" alt="" style="height:${height}mm;width:${width}mm;max-height:${height}mm;max-width:${width}mm;object-fit:contain;display:block;opacity:${opacity};" />
       </div>
-      <div class="pdf-header-line"></div>
     </div>
   `;
 }
@@ -79,11 +79,11 @@ function buildFooterHTML(
   const posCSS = getLogoPositionCSS(settings?.footerLogoPosition);
   const wrapperHeight = footerTotalMM || height + 2;
 
+  const opacity = settings?.footerLogoOpacity ?? 1.0;
   return `
     <div class="pdf-footer" style="height:${wrapperHeight}mm;">
-      <div class="pdf-footer-line"></div>
       <div class="pdf-footer-inner" style="${posCSS}background:${bg};height:${height}mm;">
-        <img src="${escapeHtmlAttr(settings!.footerLogoUrl!)}" alt="" style="height:${height}mm;width:${width}mm;max-height:${height}mm;max-width:${width}mm;object-fit:contain;display:block;" />
+        <img src="${escapeHtmlAttr(settings!.footerLogoUrl!)}" alt="" style="height:${height}mm;width:${width}mm;max-height:${height}mm;max-width:${width}mm;object-fit:contain;display:block;opacity:${opacity};" />
       </div>
     </div>
   `;
@@ -254,11 +254,6 @@ export function buildPdfHtml(
       width: 100%;
       overflow: hidden;
     }
-    .pdf-header-line {
-      width: 100%;
-      height: 0.5px;
-      background: rgb(200,200,200);
-    }
 
     /* ── Fixed footer: positioned in the bottom page margin ── */
     .pdf-footer {
@@ -270,11 +265,6 @@ export function buildPdfHtml(
       width: 100% !important;
       margin: 0 !important;
       z-index: 1000 !important;
-    }
-    .pdf-footer-line {
-      width: 100%;
-      height: 0.5px;
-      background: rgb(200,200,200);
     }
     .pdf-footer-inner {
       display: flex;

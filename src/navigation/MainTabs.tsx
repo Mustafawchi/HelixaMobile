@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import PatientsStack from './PatientsStack';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import AskHelixaScreen from '../screens/askHelixa/AskHelixaScreen';
-import SettingsScreen from '../screens/settings/SettingsScreen';
+import SettingsStack from './SettingsStack';
 import type { MainTabParamList } from '../types/navigation';
 import { COLORS } from '../types/colors';
 
@@ -69,7 +69,7 @@ export default function MainTabs() {
       />
       <Tab.Screen
         name="Settings"
-        component={SettingsScreen}
+        component={SettingsStack}
         options={{
           tabBarIcon: ({ focused, color }) => (
             <Ionicons
