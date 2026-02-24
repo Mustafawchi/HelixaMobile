@@ -57,6 +57,7 @@ import SortOptionsPopup, {
   type NoteSortKey,
 } from "./components/SortOptionsPopup";
 import SelectDoctorPopup from "../generates/components/SelectDoctorPopup";
+import { useDoctors } from "../../hooks/queries/useDoctors";
 import { useUpdatePatient } from "../../hooks/mutations/useUpdatePatient";
 import CreateNotePopup from "./components/CreateNotePopup";
 import { usePdfExport } from "../../hooks/usePdfExport";
@@ -87,6 +88,9 @@ export default function NoteListScreen() {
   const [sortKey, setSortKey] = useState<NoteSortKey>("created-desc");
   const updatePatient = useUpdatePatient();
   const queryClient = useQueryClient();
+
+  // Prefetch doctors list so it's cached before user opens referral popup
+  useDoctors();
 
   const {
     data,

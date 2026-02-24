@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -30,6 +30,7 @@ import ConsultationTemplatePopup from "./components/ConsultationTemplatePopup";
 import VoiceRecord from "./components/VoiceRecord";
 import ProcessingOverlay from "./components/ProcessingOverlay";
 import SaveButton from "./components/SaveButton";
+import * as FileSystem from "expo-file-system";
 import type { AudioRecordingResult } from "../../types/audio";
 
 type NewNoteRoute = RouteProp<PatientsStackParamList, "NewNote">;
@@ -113,6 +114,36 @@ export default function NewNoteScreen() {
   const regeneratingRef = useRef<RecordTarget | null>(null);
   const recordTargetRef = useRef<RecordTarget>(recordTarget);
   recordTargetRef.current = recordTarget;
+
+  // Delete audio files from disk
+  const cleanupAudioFiles = useCallback(async () => {
+    const uris = [
+      sectionDataRef.current.consultation?.audioUri,
+      sectionDataRef.current.procedure?.audioUri,
+    ].filter(Boolean) as string[];
+
+    for (const uri of uris) {
+      try {
+        const info = await FileSystem.getInfoAsync(uri);
+        if (info.exists) {
+          await FileSystem.deleteAsync(uri, { idempotent: true });
+          console.log("[NewNoteScreen] Deleted audio file:", uri);
+        }
+      } catch (e) {
+        console.log("[NewNoteScreen] Failed to delete audio file:", uri, e);
+      }
+    }
+
+    sectionDataRef.current = { consultation: null, procedure: null };
+    lastRecordedAudioRef.current = "";
+  }, []);
+
+  // Cleanup audio files on unmount
+  useEffect(() => {
+    return () => {
+      cleanupAudioFiles();
+    };
+  }, [cleanupAudioFiles]);
 
   // Streaming audio upload hook
   const streamingUpload = useStreamingAudioUpload({
@@ -263,6 +294,7 @@ export default function NewNoteScreen() {
             },
           },
         );
+        cleanupAudioFiles();
         Alert.alert("Saved", "Your note has been saved.");
         navigation.goBack();
       })
@@ -274,6 +306,7 @@ export default function NewNoteScreen() {
       });
   }, [
     createNote,
+    cleanupAudioFiles,
     patientId,
     consultationTitle,
     content,
