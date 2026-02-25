@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,13 +10,16 @@ import {
   Switch,
   PanResponder,
   ActivityIndicator,
+  Modal,
 } from "react-native";
 import Slider from "@react-native-community/slider";
+import ColorPicker, { Panel1, HueSlider, Preview } from "reanimated-color-picker";
+import { useSharedValue } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
-import * as FileSystem from "expo-file-system";
+import { File } from "expo-file-system";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../../config/firebase";
 import { useUser } from "../../hooks/queries/useUser";
@@ -63,6 +66,8 @@ export default function PdfSettingsScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingHeader, setIsUploadingHeader] = useState(false);
   const [isUploadingFooter, setIsUploadingFooter] = useState(false);
+  const [colorPickerTarget, setColorPickerTarget] = useState<"header" | "footer" | null>(null);
+  const pendingColor = useSharedValue("");
 
   // Keep a ref to current settings so PanResponder closures always read the latest
   const settingsRef = useRef(settings);
@@ -110,9 +115,14 @@ export default function PdfSettingsScreen() {
     setUploading(true);
 
     try {
-      const base64 = await FileSystem.readAsStringAsync(asset.uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      const file = new File(asset.uri);
+      const buffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      let binary = "";
+      for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      const base64 = btoa(binary);
 
       const mimeType = asset.mimeType || "image/jpeg";
       const aspectRatio = (asset.height || 1) / (asset.width || 1);
@@ -389,6 +399,53 @@ export default function PdfSettingsScreen() {
     );
   };
 
+  const onColorSelect = useCallback(({ hex }: { hex: string }) => {
+    'worklet';
+    pendingColor.value = hex;
+  }, []);
+
+  const renderBgColorPicker = (type: "header" | "footer") => {
+    const isHeader = type === "header";
+    const url = isHeader ? settings.headerLogoUrl : settings.footerLogoUrl;
+    const color = isHeader
+      ? settings.headerBackgroundColor
+      : settings.footerBackgroundColor;
+
+    if (!url) return null;
+
+    return (
+      <View style={styles.settingRow}>
+        <Text style={styles.settingLabel}>Background Color</Text>
+        <View style={styles.bgColorRow}>
+          <Pressable
+            style={[
+              styles.bgColorSwatch,
+              { backgroundColor: color || "#ffffff", borderColor: COLORS.borderDark },
+            ]}
+            onPress={() => {
+              pendingColor.value = color || "#ffffff";
+              setColorPickerTarget(type);
+            }}
+          />
+          <Text style={styles.bgColorValue}>{color || "None"}</Text>
+          {color ? (
+            <Pressable
+              onPress={() =>
+                setSettings((prev) => ({
+                  ...prev,
+                  [isHeader ? "headerBackgroundColor" : "footerBackgroundColor"]: "",
+                }))
+              }
+              style={styles.bgColorClearBtn}
+            >
+              <Text style={styles.bgColorClearText}>Clear</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      </View>
+    );
+  };
+
   const renderLogoSection = (
     type: "header" | "footer",
     label: string,
@@ -450,6 +507,7 @@ export default function PdfSettingsScreen() {
         {url && renderPositionSelector(type)}
         {renderResizableLogo(type)}
         {renderOpacitySlider(type)}
+        {renderBgColorPicker(type)}
       </View>
     );
   };
@@ -552,42 +610,53 @@ export default function PdfSettingsScreen() {
             </View>
 
             {/* Footer */}
-            <View
-              style={[
-                styles.previewFooter,
-                settings.footerBackgroundColor
-                  ? { backgroundColor: settings.footerBackgroundColor }
-                  : undefined,
-              ]}
-            >
-              {settings.footerLogoUrl ? (
-                <View
-                  style={{
-                    width: "100%",
-                    alignItems:
-                      settings.footerLogoPosition === "center"
-                        ? "center"
-                        : settings.footerLogoPosition === "right"
-                          ? "flex-end"
-                          : "flex-start",
-                    paddingHorizontal: 10,
-                  }}
-                >
-                  <Image
-                    source={{ uri: settings.footerLogoUrl }}
+            <View style={styles.previewFooterWrap}>
+              <View
+                style={[
+                  styles.previewFooter,
+                  settings.footerBackgroundColor
+                    ? { backgroundColor: settings.footerBackgroundColor }
+                    : undefined,
+                ]}
+              >
+                {settings.footerLogoUrl ? (
+                  <View
                     style={{
-                      width:
-                        (settings.footerLogoWidth || 50) * PREVIEW_SCALE,
-                      height:
-                        (settings.footerLogoHeight || 20) * PREVIEW_SCALE,
-                      opacity: settings.footerLogoOpacity ?? 1,
+                      width: "100%",
+                      alignItems:
+                        settings.footerLogoPosition === "center"
+                          ? "center"
+                          : settings.footerLogoPosition === "right"
+                            ? "flex-end"
+                            : "flex-start",
+                      paddingHorizontal: 10,
                     }}
-                    resizeMode="contain"
-                  />
-                </View>
-              ) : null}
+                  >
+                    <Image
+                      source={{ uri: settings.footerLogoUrl }}
+                      style={{
+                        width:
+                          (settings.footerLogoWidth || 50) * PREVIEW_SCALE,
+                        height:
+                          (settings.footerLogoHeight || 20) * PREVIEW_SCALE,
+                        opacity: settings.footerLogoOpacity ?? 1,
+                      }}
+                      resizeMode="contain"
+                    />
+                  </View>
+                ) : null}
+              </View>
               {settings.includePageNumbers && (
-                <Text style={styles.previewPageNum}>Page 1 of 3</Text>
+                <View
+                  style={[
+                    styles.previewPageNumRow,
+                    settings.footerLogoUrl
+                      ? { borderTopWidth: 1, borderTopColor: COLORS.borderLight }
+                      : undefined,
+                  ]}
+                >
+                  <Text style={styles.previewPageNum}>Page 1 of 3</Text>
+                </View>
               )}
             </View>
           </View>
@@ -619,6 +688,63 @@ export default function PdfSettingsScreen() {
           </Pressable>
         </View>
       </ScrollView>
+
+      {/* Color Picker Modal */}
+      <Modal
+        visible={colorPickerTarget !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setColorPickerTarget(null)}
+      >
+        <View style={styles.colorModalOverlay}>
+          <View style={styles.colorModalContent}>
+            <Text style={styles.colorModalTitle}>
+              {colorPickerTarget === "header" ? "Header" : "Footer"} Background Color
+            </Text>
+            <ColorPicker
+              value={
+                (colorPickerTarget === "header"
+                  ? settings.headerBackgroundColor
+                  : settings.footerBackgroundColor) || "#ffffff"
+              }
+              onComplete={onColorSelect}
+              style={{ width: "100%", gap: 16 }}
+            >
+              <Preview />
+              <Panel1 />
+              <HueSlider />
+            </ColorPicker>
+            <View style={styles.colorModalButtons}>
+              <Pressable
+                style={styles.colorModalBtn}
+                onPress={() => {
+                  if (colorPickerTarget) {
+                    const field =
+                      colorPickerTarget === "header"
+                        ? "headerBackgroundColor"
+                        : "footerBackgroundColor";
+                    setSettings((prev) => ({
+                      ...prev,
+                      [field]: pendingColor.value,
+                    }));
+                  }
+                  setColorPickerTarget(null);
+                }}
+              >
+                <Text style={styles.colorModalBtnText}>Apply</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.colorModalBtn, styles.colorModalBtnSecondary]}
+                onPress={() => setColorPickerTarget(null)}
+              >
+                <Text style={[styles.colorModalBtnText, { color: COLORS.textSecondary }]}>
+                  Cancel
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -846,12 +972,18 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     marginTop: spacing.sm,
   },
+  previewFooterWrap: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderLight,
+  },
   previewFooter: {
     minHeight: 36,
     justifyContent: "center",
     backgroundColor: COLORS.surface,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
+    paddingVertical: spacing.xs,
+  },
+  previewPageNumRow: {
+    backgroundColor: COLORS.surface,
     paddingVertical: spacing.xs,
   },
   previewPageNum: {
@@ -860,7 +992,6 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     textAlign: "center",
     paddingHorizontal: 10,
-    paddingTop: 4,
   },
   // Action buttons
   actionButtons: {
@@ -894,5 +1025,74 @@ const styles = StyleSheet.create({
   },
   btnDisabled: {
     opacity: 0.6,
+  },
+  // Color picker modal
+  colorModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  colorModalContent: {
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxl,
+  },
+  colorModalTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: COLORS.textPrimary,
+    textAlign: "center",
+    marginBottom: spacing.md,
+  },
+  colorModalButtons: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+  },
+  colorModalBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: borderRadius.md,
+    alignItems: "center",
+    backgroundColor: COLORS.primary,
+  },
+  colorModalBtnText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: COLORS.white,
+  },
+  colorModalBtnSecondary: {
+    backgroundColor: COLORS.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: COLORS.borderDark,
+  },
+  // Background color row
+  bgColorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.base,
+    marginTop: 4,
+  },
+  bgColorSwatch: {
+    width: 36,
+    height: 36,
+    borderRadius: borderRadius.sm,
+    borderWidth: 2,
+  },
+  bgColorValue: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    flex: 1,
+  },
+  bgColorClearBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  bgColorClearText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: COLORS.error,
   },
 });
