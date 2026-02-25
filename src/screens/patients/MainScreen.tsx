@@ -14,7 +14,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import ScreenHeader from "../../components/common/ScreenHeader";
 import SearchBar from "../../components/common/SearchBar";
-import PatientCard from "./components/PatientCard";
+import NewPatientCard from "./components/NewPatientCard";
 import CreatePatientPopup from "./components/CreatePatientPopup";
 import EditPatientPopup from "./components/EditPatientPopup";
 import SortOptionsPopup, {
@@ -135,7 +135,7 @@ export default function MainScreen() {
 
   const renderItem = useCallback(
     ({ item }: { item: Patient }) => (
-      <PatientCard
+      <NewPatientCard
         patient={item}
         onPress={handlePatientPress}
         onEdit={handlePatientEdit}

@@ -15,13 +15,20 @@ export interface ChatSession {
   messageCount: number;
 }
 
-export interface SaveChatSessionRequest {
-  sessionId: string | null;
-  messages: { role: string; content: string }[];
-  patientId: string | null;
-  patientName: string | null;
-  title: string | null;
-}
+// New session: provide messages + patientId/patientName/title
+// Existing session: provide newMessages only (append-only)
+export type SaveChatSessionRequest =
+  | {
+      sessionId: null;
+      messages: { role: string; content: string }[];
+      patientId: string | null;
+      patientName: string | null;
+      title: string | null;
+    }
+  | {
+      sessionId: string;
+      newMessages: { role: string; content: string }[];
+    };
 
 export interface SaveChatSessionResponse {
   success: boolean;

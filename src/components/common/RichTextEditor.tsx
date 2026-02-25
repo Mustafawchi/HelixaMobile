@@ -496,6 +496,20 @@ function getEditorHTML(
       if (!quillEditor) return;
       quillEditor.setContents([]);
       quillEditor.clipboard.dangerouslyPasteHTML(0, content);
+      // Quill adds extra empty <p> during paste — collapse consecutive empty paragraphs after paste
+      var ps = quillEditor.root.querySelectorAll('p');
+      var toRemove = [];
+      var emptyRun = 0;
+      for (var i = 0; i < ps.length; i++) {
+        var h = ps[i].innerHTML.trim();
+        var empty = h === '<br>' || h === '' || h === '&nbsp;';
+        if (empty) { emptyRun++; if (emptyRun > 1) toRemove.push(ps[i]); }
+        else emptyRun = 0;
+      }
+      if (toRemove.length > 0) {
+        toRemove.forEach(function(p) { p.parentNode.removeChild(p); });
+        quillEditor.update();
+      }
       var updatedContent = quillEditor.root.innerHTML;
       window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'update', content: updatedContent }));
       // Prevent auto-focus after content load

@@ -2,6 +2,7 @@ import React from "react";
 import {
   ActivityIndicator,
   StyleSheet,
+  StyleProp,
   TouchableOpacity,
   ViewStyle,
 } from "react-native";
@@ -11,7 +12,7 @@ import { spacing } from "../../../theme";
 
 interface SaveButtonProps {
   onPress: () => void;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   loading?: boolean;
 }
 

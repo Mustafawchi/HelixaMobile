@@ -171,7 +171,7 @@ export default function SettingsScreen() {
       >
         <Ionicons name="log-out" size={18} color={COLORS.white} />
         <Text style={styles.signOutText}>
-          {logout.isPending ? "Signing Out..." : "Sign Out"}
+          {logout.isPending ? "Logging Out..." : "Log Out"}
         </Text>
       </Pressable>
     </ScrollView>

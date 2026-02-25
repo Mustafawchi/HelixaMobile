@@ -65,8 +65,7 @@ function buildDefaultNoteHTML(
 <p><strong>Practitioner:</strong> ${practitioner}</p>
 <p><strong>Patient:</strong> ${patientName}</p>
 <p><strong>Type:</strong> ${consultationType}</p>
-<p><strong>Clinical Notes:</strong></p>
-<p></p>`;
+<p><strong>Clinical Notes:</strong></p>`;
 }
 
 export default function NewNoteScreen() {
@@ -463,7 +462,7 @@ export default function NewNoteScreen() {
         <SaveButton
           onPress={handleSavePress}
           loading={createNote.isPending}
-          style={[styles.saveButton, { bottom: insets.bottom + spacing.md }]}
+          style={[styles.saveButton, { bottom: insets.bottom + spacing.sm }]}
         />
       )}
 

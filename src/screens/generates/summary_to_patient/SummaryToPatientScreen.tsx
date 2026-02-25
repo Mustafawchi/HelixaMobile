@@ -109,6 +109,7 @@ export default function SummaryToPatientScreen() {
       const attachmentUri = await createPdfFileViaServer(
         letterContent,
         `Summary_${patientName}_${new Date().toISOString().slice(0, 10)}`,
+        { isLetter: true },
       );
 
       const EMAIL_APPS = [
@@ -332,7 +333,7 @@ export default function SummaryToPatientScreen() {
               <View style={styles.buttonRow}>
                 <ExportPdfButton
                   onPress={() =>
-                    exportPdfViaServer(letterContent, `Summary_${patientName}`)
+                    exportPdfViaServer(letterContent, `Summary_${patientName}`, { isLetter: true })
                   }
                   isExporting={isServerExporting}
                   variant="outlined"

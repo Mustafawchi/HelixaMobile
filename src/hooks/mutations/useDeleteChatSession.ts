@@ -26,8 +26,9 @@ export const useDeleteChatSession = () => {
         queryClient.setQueryData(chatKeys.history(), context.previousHistory);
       }
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: chatKeys.all });
+    onSettled: (_data, _err, sessionId) => {
+      // Clean up messages cache for the deleted session only
+      queryClient.removeQueries({ queryKey: chatKeys.messages(sessionId) });
     },
   });
 };

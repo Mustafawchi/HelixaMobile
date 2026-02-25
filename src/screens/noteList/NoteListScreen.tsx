@@ -130,6 +130,8 @@ export default function NoteListScreen() {
     return data.pages.flatMap((page) => page.notes);
   }, [data]);
 
+  const totalNoteCount = data?.pages?.[0]?.totalNoteCount ?? allNotes.length;
+
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       setDebouncedSearch(search.trim());
@@ -639,7 +641,7 @@ export default function NoteListScreen() {
           </TouchableOpacity>
 
           <View style={styles.notesPill}>
-            <Text style={styles.notesCount}>{allNotes.length}</Text>
+            <Text style={styles.notesCount}>{totalNoteCount}</Text>
             <Text style={styles.notesLabel}>notes</Text>
           </View>
         </View>

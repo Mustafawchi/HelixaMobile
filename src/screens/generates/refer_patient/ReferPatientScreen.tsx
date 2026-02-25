@@ -121,6 +121,7 @@ export default function ReferPatientScreen() {
       const attachmentUri = await createPdfFileViaServer(
         letterContent,
         `Referral_${patientName}_${new Date().toISOString().slice(0, 10)}`,
+        { isLetter: true },
       );
       await composeAndOpenEmailWithAttachment({
         to: recipient,
@@ -280,7 +281,7 @@ export default function ReferPatientScreen() {
             {activeTab === "document" ? (
               <View style={styles.buttonRow}>
                 <ExportPdfButton
-                  onPress={() => exportPdf(letterContent, `Referral_${patientName}`)}
+                  onPress={() => exportPdf(letterContent, `Referral_${patientName}`, { isLetter: true })}
                   isExporting={isExporting}
                   variant="outlined"
                 />

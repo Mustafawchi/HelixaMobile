@@ -34,6 +34,7 @@ export interface GetPatientNotesResponse {
   hasMore: boolean;
   lastVisibleNoteId: string | null;
   count: number;
+  totalNoteCount?: number;
   patientDetails?: PatientDetails;
 }
 

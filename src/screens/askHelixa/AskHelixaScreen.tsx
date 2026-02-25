@@ -142,19 +142,27 @@ export default function AskHelixaScreen() {
           ];
           setLocalMessages(finalMessages);
 
-          // Save session
+          // Save session — only send the 2 new messages for existing sessions
           try {
-            const sessionId = await saveChatSession.mutateAsync({
-              sessionId: activeSessionId,
-              messages: finalMessages.map((m) => ({
-                role: m.role,
-                content: m.content,
-              })),
-              patientId,
-              patientName: selectedPatient.id ? selectedPatient.name : null,
-              title: null,
-            });
-            if (!activeSessionId) {
+            if (activeSessionId) {
+              await saveChatSession.mutateAsync({
+                sessionId: activeSessionId,
+                newMessages: [
+                  { role: userMessage.role, content: userMessage.content },
+                  { role: "assistant", content: fullContent },
+                ],
+              });
+            } else {
+              const sessionId = await saveChatSession.mutateAsync({
+                sessionId: null,
+                messages: finalMessages.map((m) => ({
+                  role: m.role,
+                  content: m.content,
+                })),
+                patientId,
+                patientName: selectedPatient.id ? selectedPatient.name : null,
+                title: null,
+              });
               setActiveSessionId(sessionId);
               prevSessionIdRef.current = sessionId;
             }
@@ -207,7 +215,17 @@ export default function AskHelixaScreen() {
     setLocalMessages([]);
     setIsStreaming(false);
     prevSessionIdRef.current = null;
-  }, []);
+
+    // Sync patient context to the selected session
+    const session = sessions.find((s) => s.id === sessionId);
+    if (session) {
+      setSelectedPatient(
+        session.patientId
+          ? { id: session.patientId, name: session.patientName ?? "" }
+          : GENERAL_CONTEXT,
+      );
+    }
+  }, [sessions]);
 
   // Faz 1: Mount'ta AsyncStorage'dan son session ID'yi oku
   useEffect(() => {

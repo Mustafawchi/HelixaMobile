@@ -8,6 +8,7 @@ interface SubscriptionPlanCardProps {
   planName: string;
   planTag?: string;
   details: string;
+  buttonLabel?: string;
   onUpgrade?: () => void;
 }
 
@@ -15,6 +16,7 @@ export default function SubscriptionPlanCard({
   planName,
   planTag = "Free Plan",
   details,
+  buttonLabel = "Upgrade Plan",
   onUpgrade,
 }: SubscriptionPlanCardProps) {
   return (
@@ -27,7 +29,7 @@ export default function SubscriptionPlanCard({
       <Text style={styles.planTag}>{planTag}</Text>
       <Text style={styles.details}>{details}</Text>
       <Pressable style={styles.upgradeButton} onPress={onUpgrade}>
-        <Text style={styles.upgradeText}>Upgrade Plan</Text>
+        <Text style={styles.upgradeText}>{buttonLabel}</Text>
         <Ionicons name="arrow-forward" size={16} color={COLORS.white} />
       </Pressable>
     </View>

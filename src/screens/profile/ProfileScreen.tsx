@@ -69,7 +69,7 @@ export default function ProfileScreen() {
 
     switch (plan) {
       case "Pro":
-        return "Access to all features";
+        return "Unlimited notes • All features • Priority support";
       case "Premium":
         return cycle === "weekly"
           ? "30 notes per week • PDF + Word export • Priority support"
@@ -184,6 +184,13 @@ export default function ProfileScreen() {
                 : `${subscriptionInfo.plan} Plan`
           }
           details={getPlanDescription()}
+          buttonLabel={
+            subscriptionLoading
+              ? "Upgrade Plan"
+              : subscriptionStatus?.plan === "Free"
+                ? "Upgrade Plan"
+                : "Manage Subscription"
+          }
           onUpgrade={() => {}}
         />
       </View>
