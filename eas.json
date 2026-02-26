@@ -1,0 +1,26 @@
+{
+  "cli": {
+    "version": ">= 16.0.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": ".env.staging"
+    },
+    "staging": {
+      "distribution": "internal",
+      "env": ".env.staging",
+      "ios": {
+        "simulator": false
+      }
+    },
+    "production": {
+      "distribution": "store",
+      "env": ".env.production"
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
