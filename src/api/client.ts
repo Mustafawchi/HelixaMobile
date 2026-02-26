@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react-native';
 import axios from 'axios';
 import { firebaseAuth } from '../config/firebase';
 
@@ -23,6 +24,7 @@ const attachAuthInterceptors = (client: ReturnType<typeof axios.create>) => {
       const token = await user.getIdToken();
       config.headers.Authorization = `Bearer ${token}`;
     }
+    config.headers['X-Correlation-Id'] = crypto.randomUUID();
     return config;
   });
 
@@ -38,6 +40,16 @@ const attachAuthInterceptors = (client: ReturnType<typeof axios.create>) => {
           error.config.headers.Authorization = `Bearer ${token}`;
           return client(error.config);
         }
+      }
+      // 5xx veya network hatalarını Sentry'e gönder
+      if (!error.response || error.response.status >= 500) {
+        Sentry.captureException(error, {
+          extra: {
+            url: error.config?.url,
+            status: error.response?.status,
+            correlationId: error.config?.headers?.['X-Correlation-Id'],
+          },
+        });
       }
       return Promise.reject(error);
     },

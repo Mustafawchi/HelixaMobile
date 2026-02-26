@@ -50,7 +50,8 @@
           "faceIDPermission": "Helixa AI uses Face ID to protect your medical data."
         }
       ],
-      "expo-mail-composer"
+      "expo-mail-composer",
+      "@sentry/react-native"
     ]
   }
 }

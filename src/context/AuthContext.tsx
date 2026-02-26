@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react-native";
 import React, { createContext, useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { firebaseAuth } from "../config/firebase";
@@ -22,6 +23,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(firebaseAuth, (firebaseUser) => {
       setUser(firebaseUser);
+      if (firebaseUser) {
+        Sentry.setUser({ id: firebaseUser.uid, email: firebaseUser.email ?? undefined });
+      } else {
+        Sentry.setUser(null);
+      }
       setIsLoading(false);
     });
 
