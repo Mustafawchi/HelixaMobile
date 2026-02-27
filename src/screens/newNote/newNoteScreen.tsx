@@ -9,6 +9,7 @@ import {
   Alert,
   Dimensions,
 } from "react-native";
+import CustomScrollbar, { useCustomScrollbar } from "../../components/common/CustomScrollbar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -22,11 +23,14 @@ import { spacing, borderRadius } from "../../theme";
 import type { PatientsStackParamList } from "../../types/navigation";
 import { useAuth } from "../../hooks/useAuth";
 import { useStreamingAudioUpload } from "../../hooks/useStreamingAudioUpload";
+import { useCustomTemplates } from "../../hooks/useCustomTemplates";
 import { useCreateNote } from "../../hooks/mutations/useCreateNote";
 import { useAutoMedicalHistorySync } from "../../hooks/mutations/useAutoMedicalHistorySync";
 import { getConsultationLabelColor } from "../../types/note";
 import RichTextEditor from "../../components/common/RichTextEditor";
 import ConsultationTemplatePopup from "./components/ConsultationTemplatePopup";
+import CustomTemplateModal from "./components/CustomTemplateModal";
+import TemplateSelector, { TEMPLATE_NAMES } from "./components/TemplateSelector";
 import VoiceRecord from "./components/VoiceRecord";
 import ProcessingOverlay from "./components/ProcessingOverlay";
 import SaveButton from "./components/SaveButton";
@@ -84,6 +88,17 @@ export default function NewNoteScreen() {
   const createNote = useCreateNote();
   const autoMedicalHistorySync = useAutoMedicalHistorySync();
 
+  const customTemplates = useCustomTemplates();
+
+  // Resolve the display name of the currently selected custom template
+  const selectedCustomTemplateName = useMemo(() => {
+    if (!customTemplates.selectedCustomInstructions) return null;
+    const match = customTemplates.customTemplates.find(
+      (t) => t.prompt === customTemplates.selectedCustomInstructions,
+    );
+    return match?.name ?? "Custom";
+  }, [customTemplates.selectedCustomInstructions, customTemplates.customTemplates]);
+
   const practitionerName = user?.displayName || user?.email || "Practitioner";
 
   const defaultHTML = useMemo(
@@ -97,10 +112,20 @@ export default function NewNoteScreen() {
     useState<RecordTarget>("consultation");
   const [showTemplatePopup, setShowTemplatePopup] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState("standard");
+  const [selectedProcedureTemplateId, setSelectedProcedureTemplateId] = useState("procedure");
   const [showSaveButton, setShowSaveButton] = useState(false);
   const [consultationRecorded, setConsultationRecorded] = useState(false);
   const [procedureRecorded, setProcedureRecorded] = useState(false);
   const [isRegeneratingSection, setIsRegeneratingSection] = useState<RecordTarget | null>(null);
+
+  // Header title reflects the currently selected template
+  const headerTitle = selectedCustomTemplateName
+    || TEMPLATE_NAMES[selectedTemplateId]
+    || consultationTitle;
+
+  // Custom scrollbar for the main ScrollView
+  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollbar = useCustomScrollbar(scrollViewRef);
 
   // Track base content before streaming starts
   const baseContentRef = useRef(content);
@@ -210,21 +235,27 @@ export default function NewNoteScreen() {
       // Save current content as base before streaming
       baseContentRef.current = content;
 
+      // Resolve template based on active section
+      const activeTemplateId = recordTarget === "procedure" ? selectedProcedureTemplateId : selectedTemplateId;
+
       // Start streaming upload
       try {
         await streamingUpload.upload({
           fileUri: result.uri,
-          templateId: selectedTemplateId,
+          templateId: activeTemplateId,
           patientId,
           consultationType,
           recordTarget,
+          ...(customTemplates.selectedCustomInstructions && {
+            customInstructions: customTemplates.selectedCustomInstructions,
+          }),
         });
       } catch (error) {
         // Error is already handled in onError callback
         console.log("[NewNoteScreen] Upload error handled");
       }
     },
-    [content, streamingUpload, selectedTemplateId, patientId, consultationType, recordTarget],
+    [content, streamingUpload, selectedTemplateId, selectedProcedureTemplateId, patientId, consultationType, recordTarget, customTemplates.selectedCustomInstructions],
   );
 
   const handleCancelProcessing = useCallback(() => {
@@ -234,10 +265,7 @@ export default function NewNoteScreen() {
   }, [streamingUpload]);
 
   const handleRegenerateWithTemplate = useCallback(
-    async (templateId: string) => {
-      const section = isRegeneratingSection;
-      if (!section) return;
-
+    async (section: RecordTarget, templateId: string, regenCustomInstructions?: string) => {
       const sectionData = sectionDataRef.current[section];
       if (!sectionData) return;
 
@@ -252,6 +280,7 @@ export default function NewNoteScreen() {
           patientId,
           consultationType,
           recordTarget: section,
+          ...(regenCustomInstructions && { customInstructions: regenCustomInstructions }),
         });
       } catch (error) {
         console.log("[NewNoteScreen] Regeneration error handled");
@@ -259,7 +288,7 @@ export default function NewNoteScreen() {
         setIsRegeneratingSection(null);
       }
     },
-    [isRegeneratingSection, streamingUpload, patientId, consultationType],
+    [streamingUpload, patientId, consultationType],
   );
 
   const showProcessingOverlay = streamingUpload.isUploading;
@@ -324,15 +353,21 @@ export default function NewNoteScreen() {
         >
           <Ionicons name="chevron-back" size={20} color={COLORS.white} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{consultationTitle}</Text>
+        <Text style={styles.headerTitle}>{headerTitle}</Text>
         <View style={styles.headerSpacer} />
       </View>
 
+      <View style={styles.scrollArea}>
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator
+        showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        onScroll={scrollbar.onScroll}
+        onContentSizeChange={scrollbar.onContentSizeChange}
+        onLayout={scrollbar.onLayout}
+        scrollEventThrottle={16}
       >
         {/* Controls section */}
         <View style={styles.card}>
@@ -340,6 +375,21 @@ export default function NewNoteScreen() {
             isUploading={streamingUpload.isUploading}
             onRecordingComplete={handleRecordingComplete}
             onMicPress={() => setShowSaveButton(true)}
+          />
+
+          <TemplateSelector
+            selectedTemplateId={recordTarget === "procedure" ? selectedProcedureTemplateId : selectedTemplateId}
+            selectedCustomTemplateName={selectedCustomTemplateName}
+            onPress={() => setShowTemplatePopup(true)}
+            disabled={streamingUpload.isUploading || (recordTarget === "consultation" ? consultationRecorded : procedureRecorded)}
+            onRegenerate={
+              !streamingUpload.isUploading && (recordTarget === "consultation" ? consultationRecorded : procedureRecorded)
+                ? () => {
+                    setIsRegeneratingSection(recordTarget);
+                    setShowTemplatePopup(true);
+                  }
+                : undefined
+            }
           />
 
           <View style={styles.sectionDivider} />
@@ -351,8 +401,7 @@ export default function NewNoteScreen() {
                 recordTarget === "consultation" && !consultationRecorded && styles.tabSelected,
                 consultationRecorded && styles.tabCompleted,
               ]}
-              onPress={() => !consultationRecorded && setRecordTarget("consultation")}
-              disabled={consultationRecorded}
+              onPress={() => setRecordTarget("consultation")}
             >
               <View
                 style={[
@@ -375,18 +424,6 @@ export default function NewNoteScreen() {
                   </View>
                 )}
               </View>
-              {consultationRecorded && !streamingUpload.isUploading && (
-                <TouchableOpacity
-                  style={styles.regenerateButton}
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    setIsRegeneratingSection("consultation");
-                    setShowTemplatePopup(true);
-                  }}
-                >
-                  <Ionicons name="swap-horizontal" size={16} color={COLORS.primary} />
-                </TouchableOpacity>
-              )}
               {recordTarget === "consultation" && !consultationRecorded && (
                 <View style={styles.tabIndicator} />
               )}
@@ -398,8 +435,7 @@ export default function NewNoteScreen() {
                 recordTarget === "procedure" && !procedureRecorded && styles.tabSelected,
                 procedureRecorded && styles.tabCompleted,
               ]}
-              onPress={() => !procedureRecorded && setRecordTarget("procedure")}
-              disabled={procedureRecorded}
+              onPress={() => setRecordTarget("procedure")}
             >
               <View
                 style={[
@@ -422,18 +458,6 @@ export default function NewNoteScreen() {
                   </View>
                 )}
               </View>
-              {procedureRecorded && !streamingUpload.isUploading && (
-                <TouchableOpacity
-                  style={styles.regenerateButton}
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    setIsRegeneratingSection("procedure");
-                    setShowTemplatePopup(true);
-                  }}
-                >
-                  <Ionicons name="swap-horizontal" size={16} color={COLORS.primary} />
-                </TouchableOpacity>
-              )}
               {recordTarget === "procedure" && !procedureRecorded && (
                 <View style={[styles.tabIndicator, styles.tabIndicatorBlue]} />
               )}
@@ -458,6 +482,14 @@ export default function NewNoteScreen() {
         </View>
       </ScrollView>
 
+      <CustomScrollbar
+        thumbPosition={scrollbar.thumbPosition}
+        thumbHeight={scrollbar.thumbHeight}
+        opacity={scrollbar.opacity}
+        panResponder={scrollbar.panResponder}
+      />
+      </View>
+
       {showSaveButton && (
         <SaveButton
           onPress={handleSavePress}
@@ -476,22 +508,64 @@ export default function NewNoteScreen() {
         />
       )}
 
+      {/* Template Popup — dynamically switches between consultation/procedure */}
       <ConsultationTemplatePopup
         visible={showTemplatePopup}
+        section={recordTarget}
         onClose={() => {
           setShowTemplatePopup(false);
           setIsRegeneratingSection(null);
         }}
-        selectedTemplateId={selectedTemplateId}
+        selectedTemplateId={recordTarget === "procedure" ? selectedProcedureTemplateId : selectedTemplateId}
+        selectedCustomInstructions={customTemplates.selectedCustomInstructions}
         onSelect={(template) => {
-          setSelectedTemplateId(template.id);
+          if (recordTarget === "procedure") {
+            setSelectedProcedureTemplateId(template.id);
+          } else {
+            setSelectedTemplateId(template.id);
+          }
+          customTemplates.setSelectedCustomInstructions(null);
           if (isRegeneratingSection) {
             setShowTemplatePopup(false);
-            handleRegenerateWithTemplate(template.id);
+            handleRegenerateWithTemplate(isRegeneratingSection, template.id);
             setIsRegeneratingSection(null);
           }
         }}
+        onSelectCustom={(template) => {
+          if (recordTarget === "procedure") {
+            setSelectedProcedureTemplateId("custom");
+          } else {
+            setSelectedTemplateId("custom");
+          }
+          customTemplates.setSelectedCustomInstructions(template.prompt);
+          if (isRegeneratingSection) {
+            setShowTemplatePopup(false);
+            handleRegenerateWithTemplate(isRegeneratingSection, "custom", template.prompt);
+            setIsRegeneratingSection(null);
+          }
+        }}
+        onSelectNone={recordTarget === "procedure" ? () => {
+          setSelectedProcedureTemplateId("");
+          customTemplates.setSelectedCustomInstructions(null);
+          setShowTemplatePopup(false);
+        } : undefined}
+        customTemplates={customTemplates.customTemplates.filter((t) => t.type === recordTarget)}
+        onOpenCreateCustomTemplate={() => customTemplates.openNewCustomTemplate(recordTarget)}
+        onEditCustomTemplate={customTemplates.openEditCustomTemplate}
+        onDeleteCustomTemplate={customTemplates.handleDeleteCustomTemplate}
         isRegenerating={!!isRegeneratingSection}
+      />
+
+      <CustomTemplateModal
+        visible={customTemplates.showCustomTemplateModal}
+        onClose={customTemplates.closeCustomTemplateModal}
+        editingId={customTemplates.editingCustomTemplateId}
+        name={customTemplates.customTemplateName}
+        onNameChange={customTemplates.setCustomTemplateName}
+        prompt={customTemplates.customTemplatePrompt}
+        onPromptChange={customTemplates.setCustomTemplatePrompt}
+        isSaving={customTemplates.isSavingCustomTemplate}
+        onSave={customTemplates.handleSaveCustomTemplate}
       />
     </View>
   );
@@ -532,6 +606,9 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: "center",
     marginHorizontal: spacing.sm,
+  },
+  scrollArea: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
@@ -634,14 +711,4 @@ const styles = StyleSheet.create({
   tabIndicatorBlue: {
     backgroundColor: "#3b82f6",
   },
-  regenerateButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
 });

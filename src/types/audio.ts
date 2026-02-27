@@ -16,6 +16,7 @@ export interface AudioUploadRequest {
   patientId: string;
   consultationType: string;
   recordTarget: "consultation" | "procedure";
+  customInstructions?: string;
 }
 
 export interface AudioUploadResponse {

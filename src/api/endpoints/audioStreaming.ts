@@ -70,6 +70,7 @@ export async function processAudioStreaming(
         audioBase64,
         fileName,
         templateId: params.templateId,
+        ...(params.customInstructions && { customInstructions: params.customInstructions }),
       }),
       signal: abortSignal || controller.signal,
     });

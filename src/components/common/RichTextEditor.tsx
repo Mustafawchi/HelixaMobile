@@ -273,7 +273,7 @@ function getEditorHTML(
       font-family: 'Times New Roman', Georgia, serif;
       font-size: 15px;
       line-height: 1.8;
-      padding: 16px 16px 24px 16px;
+      padding: 16px 16px 40px 16px;
       color: ${COLORS.textPrimary};
       min-height: 100%;
       max-width: 100%;
@@ -528,6 +528,7 @@ function getEditorHTML(
     } else {
       initializeQuill();
     }
+
   </script>
 </body>
 </html>`;
