@@ -9,6 +9,7 @@ import React, {
 import { AppState, type AppStateStatus } from "react-native";
 import { BiometricService } from "../services/biometricService";
 import { SecureStorage } from "../services/secureStorage";
+import BiometricPromptModal from "../components/common/BiometricPromptModal";
 
 interface BiometricContextValue {
   isUnlocked: boolean;
@@ -59,6 +60,7 @@ export function BiometricProvider({ children, isAuthenticated }: Props) {
     "face" | "fingerprint" | "none"
   >("none");
   const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [showBiometricModal, setShowBiometricModal] = useState(false);
   const isAuthenticating = useRef(false);
 
   useEffect(() => {
@@ -80,6 +82,16 @@ export function BiometricProvider({ children, isAuthenticated }: Props) {
       if (!enabled || !isAuthenticated) {
         setIsUnlocked(true);
         setIsCheckingBiometric(false);
+
+        // Show one-time biometric enable prompt on first login/signup
+        if (isAuthenticated && available && !enabled) {
+          const promptShown =
+            await SecureStorage.getBiometricPromptShown();
+          if (!promptShown && !cancelled) {
+            setShowBiometricModal(true);
+          }
+        }
+
         return;
       }
 
@@ -134,6 +146,25 @@ export function BiometricProvider({ children, isAuthenticated }: Props) {
     return () => subscription.remove();
   }, [biometricEnabled, isAuthenticated]);
 
+  const handleBiometricEnable = useCallback(async () => {
+    setShowBiometricModal(false);
+    await SecureStorage.setBiometricPromptShown(true);
+    try {
+      const result = await BiometricService.authenticateBiometric(
+        "Verify to enable biometrics",
+      );
+      if (result.success) {
+        await SecureStorage.setBiometricEnabled(true);
+        setBiometricEnabled(true);
+      }
+    } catch {}
+  }, [biometryType]);
+
+  const handleBiometricDismiss = useCallback(async () => {
+    setShowBiometricModal(false);
+    await SecureStorage.setBiometricPromptShown(true);
+  }, []);
+
   const toggleBiometric = useCallback(async () => {
     if (biometricEnabled) {
       await SecureStorage.setBiometricEnabled(false);
@@ -168,6 +199,13 @@ export function BiometricProvider({ children, isAuthenticated }: Props) {
       }}
     >
       {children}
+
+      <BiometricPromptModal
+        visible={showBiometricModal}
+        biometryType={biometryType}
+        onEnable={handleBiometricEnable}
+        onDismiss={handleBiometricDismiss}
+      />
     </BiometricContext.Provider>
   );
 }

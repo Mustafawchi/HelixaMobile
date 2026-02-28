@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { authApi } from "../../api/endpoints/auth";
 import type {
   SendLoginCodeRequest,
@@ -29,10 +29,14 @@ export const useVerifyLoginCode = () => {
 };
 
 /**
- * Logout - signs out from Firebase Auth
+ * Logout - signs out from Firebase Auth and clears all cached data
  */
 export const useLogout = () => {
+  const queryClient = useQueryClient();
   return useMutation<void, Error, void>({
     mutationFn: authApi.logout,
+    onSuccess: () => {
+      queryClient.clear();
+    },
   });
 };

@@ -31,6 +31,8 @@ export interface SendSignupCodeRequest {
   email: string;
   firstName: string;
   lastName: string;
+  practiceName: string;
+  positionInPractice: string;
 }
 
 export interface SendSignupCodeResponse {
@@ -43,6 +45,8 @@ export interface VerifySignupCodeRequest {
   code: string;
   firstName: string;
   lastName: string;
+  practiceName: string;
+  positionInPractice: string;
 }
 
 export interface VerifySignupCodeResponse {
