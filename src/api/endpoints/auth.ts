@@ -1,6 +1,7 @@
 import { loggedCallable } from "../../utils/networkLogger";
 import { signInWithCustomToken, signOut } from "firebase/auth";
 import { firebaseAuth, functions } from "../../config/firebase";
+import { SecureStorage } from "../../services/secureStorage";
 import type {
   SendLoginCodeRequest,
   SendLoginCodeResponse,
@@ -67,5 +68,7 @@ export const authApi = {
 
   logout: async (): Promise<void> => {
     await signOut(firebaseAuth);
+    await SecureStorage.setBiometricEnabled(false);
+    await SecureStorage.setBiometricPromptShown(false);
   },
 };

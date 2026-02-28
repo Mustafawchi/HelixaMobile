@@ -1,6 +1,7 @@
 import * as SecureStore from "expo-secure-store";
 
 const BIOMETRIC_ENABLED_KEY = "biometric_enabled";
+const BIOMETRIC_PROMPT_SHOWN_KEY = "biometric_prompt_shown";
 
 export const SecureStorage = {
   async getBiometricEnabled(): Promise<boolean> {
@@ -13,6 +14,19 @@ export const SecureStorage = {
       await SecureStore.setItemAsync(BIOMETRIC_ENABLED_KEY, "true");
     } else {
       await SecureStore.deleteItemAsync(BIOMETRIC_ENABLED_KEY);
+    }
+  },
+
+  async getBiometricPromptShown(): Promise<boolean> {
+    const value = await SecureStore.getItemAsync(BIOMETRIC_PROMPT_SHOWN_KEY);
+    return value === "true";
+  },
+
+  async setBiometricPromptShown(shown: boolean): Promise<void> {
+    if (shown) {
+      await SecureStore.setItemAsync(BIOMETRIC_PROMPT_SHOWN_KEY, "true");
+    } else {
+      await SecureStore.deleteItemAsync(BIOMETRIC_PROMPT_SHOWN_KEY);
     }
   },
 };

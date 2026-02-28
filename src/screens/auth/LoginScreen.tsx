@@ -12,13 +12,19 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { COLORS, spacing, borderRadius } from "../../theme";
 import {
   useSendLoginCode,
   useVerifyLoginCode,
 } from "../../hooks/mutations/useLogin";
+import type { AuthStackParamList } from "../../types/navigation";
+
+type Nav = NativeStackNavigationProp<AuthStackParamList, "Login">;
 
 export default function LoginScreen() {
+  const navigation = useNavigation<Nav>();
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [twoFactorCode, setTwoFactorCode] = useState("");
@@ -296,7 +302,9 @@ export default function LoginScreen() {
               {/* Signup Link */}
               <View style={styles.signupContainer}>
                 <Text style={styles.signupText}>Don't have an account? </Text>
-                <TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate("Signup")}
+                >
                   <Text style={styles.signupLink}>Create one</Text>
                 </TouchableOpacity>
               </View>
@@ -347,20 +355,20 @@ const styles = StyleSheet.create({
   // ---- Header ----
   header: {
     backgroundColor: COLORS.primary,
-    paddingTop: 70,
-    paddingBottom: 36,
+    paddingTop: 60,
+    paddingBottom: 28,
     alignItems: "center",
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
   },
   logoContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 18,
     backgroundColor: "rgba(255,255,255,0.15)",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 14,
+    marginBottom: 10,
   },
   brandTitle: {
     fontSize: 26,
@@ -390,6 +398,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: COLORS.textSecondary,
     textAlign: "center",
+    marginBottom: 5,
   },
   // ---- Input ----
   inputWrapper: {

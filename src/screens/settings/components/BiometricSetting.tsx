@@ -15,13 +15,6 @@ export default function BiometricSetting() {
 
   if (!biometricAvailable) return null;
 
-  const biometricLabel =
-    biometryType === "face"
-      ? "Face ID"
-      : biometryType === "fingerprint"
-        ? "Touch ID"
-        : "Biometric Lock";
-
   const biometricIcon =
     biometryType === "fingerprint" ? "finger-print" : "lock-closed";
 
@@ -46,9 +39,9 @@ export default function BiometricSetting() {
         <Ionicons name={biometricIcon} size={18} color={COLORS.primary} />
       </View>
       <View style={styles.rowText}>
-        <Text style={styles.rowTitle}>{biometricLabel}</Text>
+        <Text style={styles.rowTitle}>Biometrics</Text>
         <Text style={styles.rowSubtitle}>
-          Require {biometricLabel} when opening the app
+          Require biometrics when opening the app
         </Text>
       </View>
       <Switch
