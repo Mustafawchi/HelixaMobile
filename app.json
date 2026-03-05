@@ -40,7 +40,7 @@
       "package": "com.fursakizci.HelixaAIMobile"
     },
     "web": {
-      "favicon": "./assets/favicon1.png"
+      "favicon": "./assets/favicon3.png"
     },
     "plugins": [
       "expo-secure-store",
