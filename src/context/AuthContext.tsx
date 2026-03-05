@@ -24,7 +24,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthStateChanged(firebaseAuth, (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        Sentry.setUser({ id: firebaseUser.uid, email: firebaseUser.email ?? undefined });
+        Sentry.setUser({ id: firebaseUser.uid });
       } else {
         Sentry.setUser(null);
       }

@@ -22,18 +22,18 @@ export const audioApi = {
   processRecording: async (
     params: AudioUploadRequest,
   ): Promise<AudioUploadResponse> => {
-    console.log("[AudioAPI] processRecording called with params:", {
-      fileUri: params.fileUri,
-      templateId: params.templateId,
-      patientId: params.patientId,
-      consultationType: params.consultationType,
-      recordTarget: params.recordTarget,
-    });
+    if (__DEV__) {
+      console.log("[AudioAPI] processRecording called with params:", {
+        templateId: params.templateId,
+        consultationType: params.consultationType,
+        recordTarget: params.recordTarget,
+      });
+    }
 
     // Convert audio file to base64
-    console.log("[AudioAPI] Converting audio file to base64...");
+    if (__DEV__) console.log("[AudioAPI] Converting audio file to base64...");
     const audioBase64 = await fileToBase64(params.fileUri);
-    console.log("[AudioAPI] Base64 conversion complete, length:", audioBase64.length);
+    if (__DEV__) console.log("[AudioAPI] Base64 conversion complete, length:", audioBase64.length);
 
     const fileName = params.fileUri.split("/").pop() || "recording.m4a";
 
@@ -43,7 +43,7 @@ export const audioApi = {
       templateId: params.templateId,
     };
 
-    console.log("[AudioAPI] Sending request to /upload-json...");
+    if (__DEV__) console.log("[AudioAPI] Sending request to /upload-json...");
 
     const response = await apiClient.post<AudioUploadResponse>(
       "/upload-json",
@@ -54,14 +54,14 @@ export const audioApi = {
       },
     );
 
-    console.log("[AudioAPI] Server response:", response.data);
+    if (__DEV__) console.log("[AudioAPI] Server response received");
 
     if (!response.data.success) {
       console.error("[AudioAPI] Processing failed:", response.data.message);
       throw new Error(response.data.message || "Audio processing failed");
     }
 
-    console.log("[AudioAPI] Processing successful, returning data");
+    if (__DEV__) console.log("[AudioAPI] Processing successful, returning data");
     return response.data;
   },
 };
