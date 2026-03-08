@@ -60,7 +60,6 @@ function formatTime(date: Date): string {
 function buildDefaultNoteHTML(
   practitioner: string,
   patientName: string,
-  consultationType: string,
 ): string {
   const now = new Date();
   return `<h1 style="text-align:center">Patient Note</h1>
@@ -68,7 +67,6 @@ function buildDefaultNoteHTML(
 <p><strong>Time:</strong> ${formatTime(now)}</p>
 <p><strong>Practitioner:</strong> ${practitioner}</p>
 <p><strong>Patient:</strong> ${patientName}</p>
-<p><strong>Type:</strong> ${consultationType}</p>
 <p><strong>Clinical Notes:</strong></p>`;
 }
 
@@ -103,8 +101,8 @@ export default function NewNoteScreen() {
 
   const defaultHTML = useMemo(
     () =>
-      buildDefaultNoteHTML(practitionerName, patientName, consultationTitle),
-    [practitionerName, patientName, consultationTitle],
+      buildDefaultNoteHTML(practitionerName, patientName),
+    [practitionerName, patientName],
   );
 
   const [content, setContent] = useState(defaultHTML);
