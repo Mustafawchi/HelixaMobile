@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import PatientsStack from './PatientsStack';
+import TasksScreen from '../screens/tasks/TasksScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import AskHelixaScreen from '../screens/askHelixa/AskHelixaScreen';
 import SettingsStack from './SettingsStack';
@@ -34,6 +35,20 @@ export default function MainTabs() {
           tabBarIcon: ({ focused, color }) => (
             <Ionicons
               name={focused ? 'home' : 'home-outline'}
+              size={22}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Tasks"
+        component={TasksScreen}
+        options={{
+          tabBarLabel: 'Tasks',
+          tabBarIcon: ({ focused, color }) => (
+            <Ionicons
+              name={focused ? 'checkmark-done-circle' : 'checkmark-done-circle-outline'}
               size={22}
               color={color}
             />

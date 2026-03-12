@@ -46,7 +46,6 @@ import SearchBar from "../../components/common/SearchBar";
 import LoadingOverlay from "../../components/common/LoadingOverlay";
 import NoteCard from "./components/NoteCard";
 import FilterSortBar, { NoteTypeValue } from "./components/FilterSortBar";
-import SummaryAction from "./components/SummaryAction";
 import NewNoteButton from "./components/NewNoteButton";
 import SelectionActionBar from "./components/SelectionActionBar";
 import SelectionBottomBar from "./components/SelectionBottomBar";
@@ -67,6 +66,8 @@ import type { PatientsStackParamList } from "../../types/navigation";
 import type { Note } from "../../types/note";
 import type { Doctor } from "../../types/generate";
 import { notesApi } from "../../api/endpoints/notes";
+import { tasksApi } from "../../api/endpoints/tasks";
+import { useAddTask } from "../../hooks/mutations/useUpdateTask";
 
 type NoteListRoute = RouteProp<PatientsStackParamList, "NoteList">;
 
@@ -115,6 +116,8 @@ export default function NoteListScreen() {
   const generateReferralLetter = useGenerateReferralLetter();
   const generateSmartSummary = useGenerateSmartSummary();
   const autoMedicalHistorySync = useAutoMedicalHistorySync();
+  const addTaskMutation = useAddTask();
+  const [isExtractingTasks, setIsExtractingTasks] = useState(false);
   const { data: userProfile } = useUser();
   const { exportPdfViaServer, isExporting, isServerExporting } = usePdfExport();
   const { exportMultipleWord, isExportingWord } = useWordExport();
@@ -619,6 +622,45 @@ export default function NoteListScreen() {
     userProfile?.practiceName,
   ]);
 
+  // ── Task Extraction ──────────────────────────────────────────────
+  const handleExtractTasks = useCallback(async () => {
+    if (isExtractingTasks || allNotes.length === 0) return;
+    setIsExtractingTasks(true);
+    try {
+      const notesContent = allNotes
+        .map(
+          (note, i) =>
+            `=== NOTE ${i + 1}: ${note.title || "Untitled"} ===\nType: ${note.type || "Unknown"}\nDate: ${note.createdAt || ""}\n\n${note.text || ""}`,
+        )
+        .join("\n\n");
+
+      const result = await tasksApi.extractTasks({
+        notesContent,
+        matterType: "Dental",
+      });
+
+      if (result.success && Array.isArray(result.tasks) && result.tasks.length > 0) {
+        for (const task of result.tasks) {
+          await addTaskMutation.mutateAsync({ patientId, newText: task.text });
+        }
+        Alert.alert(
+          "Tasks Extracted",
+          `${result.tasks.length} task${result.tasks.length === 1 ? "" : "s"} extracted from notes.`,
+        );
+      } else {
+        Alert.alert("No Tasks", "No new tasks found in the notes.");
+      }
+    } catch (error) {
+      console.error("Task extraction error:", error);
+      Alert.alert(
+        "Extraction Failed",
+        error instanceof Error ? error.message : "Failed to extract tasks.",
+      );
+    } finally {
+      setIsExtractingTasks(false);
+    }
+  }, [isExtractingTasks, allNotes, patientId, addTaskMutation]);
+
   return (
     <GestureHandlerRootView style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
@@ -669,7 +711,25 @@ export default function NoteListScreen() {
               onFilterChange={setFilterType}
               onSort={() => setShowSortPopup(true)}
             />
-            <SummaryAction onPress={handleSmartSummary} />
+            <View style={{ flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.sm, paddingBottom: spacing.sm }}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 4,
+                  height: 40,
+                  borderRadius: borderRadius.lg,
+                  borderWidth: 1,
+                  borderColor: COLORS.gold,
+                }}
+                onPress={handleSmartSummary}
+              >
+                <Ionicons name="sparkles-outline" size={16} color={COLORS.gold} />
+                <Text style={{ fontSize: 13, color: COLORS.gold, fontWeight: "600" }}>Smart Summary</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 

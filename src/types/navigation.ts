@@ -6,6 +6,7 @@ export type AuthStackParamList = {
 
 export type MainTabParamList = {
   Patients: undefined;
+  Tasks: undefined;
   AskHelixa: undefined;
   Profile: undefined;
   Settings: undefined;
